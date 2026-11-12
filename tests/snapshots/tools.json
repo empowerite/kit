@@ -553,6 +553,66 @@
   {
     "annotations": {
       "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": true,
+      "readOnlyHint": false
+    },
+    "description": "kit leases lists, takes, renews, and releases the paths each issue's work claims\n\nUsage:\n  kit leases [--json | --jq]\n  kit leases take <reference> [--for=<duration>] [--holder=<name>] [<path>…]\n  kit leases renew <reference>… [--for=<duration>]\n  kit leases release <reference>…\n  kit leases --check\n\nIts whole page is the resource kit://help/leases.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "check": {
+          "description": "refuses a path the branch changed outside its own lease",
+          "type": "boolean"
+        },
+        "for": {
+          "description": "the lease's term: a number and a unit, s, m, h, or d, as 90s, 45m, 2h, or 1d; 1h for take without it, and the lease's own term for renew",
+          "type": "string"
+        },
+        "holder": {
+          "description": "who takes the lease, as kit leases prints it; git's user.name, else the login, without it",
+          "type": "string"
+        },
+        "jq": {
+          "description": "the same JSON, formatted by jq for a person",
+          "type": "boolean"
+        },
+        "json": {
+          "description": "one JSON object, {now, leases}: every lease, and whether it is live",
+          "type": "boolean"
+        },
+        "path": {
+          "description": "the paths the issue's work will change, from the repository's root, as globs: docs/**",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "reference": {
+          "description": "an issue, named with its tracker: 7, #7, or AB#4521; for renew and release, a key kit leases lists, too",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "subcommand": {
+          "description": "take: claims the paths for the issue, here; renew: moves each lease's expiry to its term from now; release: deletes each lease, here and on the primary remote",
+          "enum": [
+            "take",
+            "renew",
+            "release"
+          ],
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "name": "leases",
+    "title": "kit leases"
+  },
+  {
+    "annotations": {
+      "destructiveHint": true,
       "idempotentHint": true,
       "openWorldHint": true,
       "readOnlyHint": false

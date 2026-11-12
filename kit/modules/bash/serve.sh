@@ -23,7 +23,7 @@
 #   - context, flow, help, kinds, packages, syntax, and version read only
 #   - check, lint, toolchains, and tools run what the repository's files name: check each generated region's command,
 #     lint each rule's linter, and toolchains and tools the toolchain's own definition, such as mise.toml or a flake
-#   - assign, close, gather, settle, unassign, and work act on issues and pull requests
+#   - assign, close, gather, leases, settle, unassign, and work act on issues, their leases, and pull requests
 #
 # A tool's description is the verb's purpose and the usage lines it offers. The verb's whole page is a resource,
 # kit://help/<verb>. Its input is typed, built from the verb's syntax by modules/jq/serve.jq: a property for each
@@ -35,7 +35,8 @@
 #
 # A tool that reads only runs no command the repository's files name, takes no word that acts, reads no path outside
 # the repository, changes no file git sees, and never fetches. Of the workflow tools, only work writes the repository,
-# as it makes a branch, a worktree, and a pull request:
+# as it makes a branch, a worktree, and a pull request; leases writes the clone's refs under refs/kit/, which no file
+# git sees holds:
 #
 #   - The server places .kit/ as it starts, and again between messages when kit.yml changed. A call does not place
 #     anything; kit_serve_hydrated tells the verb so. While a changed kit.yml cannot be placed, every call and read
@@ -76,17 +77,17 @@ use context help release syntax log file materialize
 declare -gra serve_versions=(2026-07-28 2025-11-25 2025-06-18 2025-03-26)
 
 # The tools, in three groups: the seven verbs that read only and the four that run what the repository's files name,
-# check, lint, toolchains, and tools, together by name; then the six workflow verbs, which act on issues and pull
-# requests. serve_acts holds the annotations of every tool that does not read only.
+# check, lint, toolchains, and tools, together by name; then the seven workflow verbs, which act on issues, their
+# leases, and pull requests. serve_acts holds the annotations of every tool that does not read only.
 declare -gra serve_tools=(check context flow help kinds lint packages syntax toolchains tools version
-  assign close gather settle unassign work)
+  assign close gather leases settle unassign work)
 
 # The tools that ask the forge, over the network, rather than reading the repository alone.
-declare -gra serve_open_world=(flow assign close gather settle unassign work)
+declare -gra serve_open_world=(flow assign close gather leases settle unassign work)
 
 # The annotations of the tools that do not read only. check, lint, toolchains, and tools run what the repository's
-# files name; each workflow tool changes something. A destructive one closes issues or takes people off them; an
-# idempotent one called again with the same arguments changes nothing more.
+# files name; each workflow tool changes something. A destructive one closes issues, takes people off them, or
+# releases a lease; an idempotent one called again with the same arguments changes nothing more.
 declare -grA serve_acts=(
   [check]='{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true}'
   [lint]='{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true}'
@@ -95,6 +96,7 @@ declare -grA serve_acts=(
   [assign]='{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true}'
   [close]='{"readOnlyHint": false, "destructiveHint": true, "idempotentHint": true}'
   [gather]='{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": false}'
+  [leases]='{"readOnlyHint": false, "destructiveHint": true, "idempotentHint": false}'
   [settle]='{"readOnlyHint": false, "destructiveHint": true, "idempotentHint": true}'
   [unassign]='{"readOnlyHint": false, "destructiveHint": true, "idempotentHint": true}'
   [work]='{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true}'

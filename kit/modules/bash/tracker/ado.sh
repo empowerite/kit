@@ -28,6 +28,14 @@ tracker/ado:assign() {
 
 tracker/ado:assignees() { tracker/ado:read "$1" '.fields["System.AssignedTo"].uniqueName // ""'; }
 
+# tracker/ado:body prints the work item's description, which Azure Boards keeps as HTML, as forge.jq's ado_text reads
+# it, and nothing for an empty one.
+tracker/ado:body() {
+  # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
+  tracker/ado:read "$1" -L "${kit_jq}" 'import "forge" as forge;
+    .fields["System.Description"] // "" | strings | forge::ado_text | select(. != "")'
+}
+
 tracker/ado:close() {
   local org state
   org=$(tracker/ado:organization) || return 1
@@ -153,11 +161,13 @@ tracker/ado:show() {
     || { error "run: az login (work item ${TRACKER_PREFIX}$1 could not be read from ${org})"; return 1; }
 }
 
-# tracker/ado:read <id> <filter> applies a jq filter to the work item. It fails when az cannot show the item.
+# tracker/ado:read <id> <jq argument>… applies jq, with the arguments, to the work item. It fails when az cannot show
+# the item.
 tracker/ado:read() {
   local item
   item=$(tracker/ado:show "$1") || return 1
-  jq --raw-output "$2" <<<"${item}"
+  shift
+  jq --raw-output "$@" <<<"${item}"
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

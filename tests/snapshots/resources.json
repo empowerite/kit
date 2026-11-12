@@ -204,6 +204,12 @@
     "uri": "kit://help/gather"
   },
   {
+    "description": "the whole help page of kit leases, the leases tool",
+    "mimeType": "text/plain",
+    "name": "help/leases",
+    "uri": "kit://help/leases"
+  },
+  {
     "description": "the whole help page of kit settle, the settle tool",
     "mimeType": "text/plain",
     "name": "help/settle",

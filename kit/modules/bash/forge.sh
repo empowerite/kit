@@ -74,6 +74,7 @@
 #                                 at most one request
 #   issue-create <title> [<body>] the number of the issue it creates
 #   issue-title <n>               the issue's title
+#   issue-body <n>                the issue's body, as Markdown, and nothing for an empty one (since 7)
 #   issue-state <n>               OPEN or CLOSED
 #   issue-assignees <n>           the assignees' logins, space-separated
 #   issue-assign <n> <login>      adds the assignee
@@ -291,15 +292,15 @@ declare -g forge_list_limit=10000
 # forge_contract is the version of the contract the file header states. forge_features lists each feature with the
 # version that added it, in the header's order, and forge_feature_of names the feature each gated call belongs to.
 # forge_lacking holds, once read, the features the primary's forge lacks, one per line; forge_lacking_read says it was.
-declare -gr forge_contract=6
+declare -gr forge_contract=7
 declare -gra forge_features=(issues:1 sub-issues:1 linked-branches:1 drafts:1 closing-issues:1 review-threads:1
   checks:1 quota:1 marks:1 releases:1 runs:1 labels:3
   milestones:4 iterations:4 reviewers:4 merged:4 artifacts:4 environments:4 deployments:4 collaborators:4 teams:4
   bots:4 attestations:4 code-scanning:4 dependabot:4 secret-scanning:4 rulesets:4 bypasses:4 check-runs:4
   swimlanes:5 bot-accounts:6)
 declare -grA forge_feature_of=(
-  [issue-create]=issues [issue-title]=issues [issue-state]=issues [issue-assignees]=issues [issue-assign]=issues
-  [issue-unassign]=issues [issue-close]=issues [issue-comment]=issues [open-issues]=issues
+  [issue-create]=issues [issue-title]=issues [issue-body]=issues [issue-state]=issues [issue-assignees]=issues
+  [issue-assign]=issues [issue-unassign]=issues [issue-close]=issues [issue-comment]=issues [open-issues]=issues
   [issue-add-sub]=sub-issues [link-branch]=linked-branches [pr-closing-issues]=closing-issues
   [quota]=quota [marks]=marks [releases]=releases [runs]=runs [pr-ready]=drafts
   [pr-label-add]=labels [pr-label-remove]=labels
@@ -313,7 +314,7 @@ declare -grA forge_feature_of=(
 # forge_call_since names the version that added each call added after the first; forge_provider_contract holds, once
 # forge:lacks has read it, the version the provider implements. forge_stand_ins holds the stand-ins, as one JSON object,
 # once forge:stand-ins has read them.
-declare -grA forge_call_since=([pr-ready]=3 [pr-set-title]=3 [pr-label-add]=3 [pr-label-remove]=3)
+declare -grA forge_call_since=([pr-ready]=3 [pr-set-title]=3 [pr-label-add]=3 [pr-label-remove]=3 [issue-body]=7)
 declare -g forge_lacking='' forge_lacking_read=false forge_provider_contract=1 forge_stand_ins=''
 
 # forge:primary prints the name of the primary remote: the primary setting in kit.yml, else origin. A name from a
@@ -738,6 +739,7 @@ forge:noun()                { forge:call noun "$@"; }
 forge:pr-url()              { forge:call pr-url "$@"; }
 forge:issue-create()        { forge:changing issue-create "$@"; }
 forge:issue-title()         { forge:call issue-title "$@"; }
+forge:issue-body()          { forge:call issue-body "$@"; }
 forge:issue-state()         { forge:call issue-state "$@"; }
 forge:issue-assignees()     { forge:call issue-assignees "$@"; }
 forge:issue-assign()        { forge:changing issue-assign "$@"; }

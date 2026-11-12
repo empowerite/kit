@@ -268,6 +268,7 @@ from arguments, stays inline where it is used.
 | `terminal.jq` | the terminal kit runs in, judged from its settings and its answers, as kit welcome's checks |
 | `version.jq` | semantic versions: their precedence, which is higher, and the highest of several |
 | `workspace.jq` | kit workspace's rows, made from what git prints |
+| `leases.jq` | what a lease holds, which leases a claim overlaps, and which paths a lease leaves out |
 
 A jq module is `<module>.jq` in `modules/jq/`, a file of `def`s. A bash module runs it with `-L "${kit_jq}"` and
 imports it under its own name, so the jq function reads as the bash function does, with `::` for `:`:

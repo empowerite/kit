@@ -15,6 +15,9 @@
 #     #7 <subject>, or with policy.commit_reference trailer, as a Refs: #7 trailer in the message's last paragraph
 #   - judges the subject, and the tree the commit will make, by the repository's policy through the policy seam, as
 #     kit policy judges them in CI
+#   - refuses a staged path that a live lease on the branch holds, of an issue the commit does not name, naming who
+#     took it; the branch's own lease, the one of the issue its name starts with, holds every path of the branch, and
+#     refuses none
 #   - with require_signing true in kit.yml, refuses when git has no user.signingkey; otherwise it warns when commits
 #     here are not signed
 #
@@ -24,6 +27,9 @@
 # A commit from an index of its own, as GIT_INDEX_FILE names, brings the shared index up to it, for the paths it
 # changed alone: a path the shared index stages as the parent has it takes the commit's copy, and one staged otherwise
 # stays, with a warning. So the next commit from the shared index is not refused as one that would undo it.
+#
+# After the commit, the lease of each issue it names, when that lease is live and on the branch, is renewed by its term,
+# so a lease lives while its work goes on.
 #
 # A commit whose subject, or a Refs: trailer, names an issue other than the branch's own attaches that issue to the
 # branch's change, so kit commit then adds a `Closes <reference>` line to the change's body, and assigns the caller to
@@ -38,7 +44,7 @@
 #
 # see: kit/bin/kit-commit, kit/bin/kit-submit, modules/bash/policy.sh, docs/features.md
 
-use git policy facts tracker context settings materialize
+use git policy facts tracker context settings materialize leases
 
 # commit:parse <argument>… reads the options both verbs share into commit_all, commit_messages, commit_file, and
 # commit_paths. guard:arguments has judged the shape of the line already, so this reads what it let through.
@@ -677,6 +683,7 @@ commit:commit() {
   } > "${message}"
   commit:with-trailer "${branch}" "${message}" || return 1
   commit:guard "${staged[@]}" || return 1
+  leases:commit-held "${branch}" "${message}" "${staged[@]}" || return 1
   commit:checks "${staged[@]}" || return 1
   # Named paths are committed alone, so the policy judges the tree they make; otherwise, the index is the tree.
   if (( ${#commit_paths[@]} > 0 ))
@@ -715,6 +722,7 @@ commit:commit() {
       warn "the shared index could not be read, so it is left as it is; run, without GIT_INDEX_FILE: git status"
     fi
   fi
+  leases:commit-renew "${branch}" "${made:-HEAD}"
   commit:attach "${branch}" "${subject}"
 }
 

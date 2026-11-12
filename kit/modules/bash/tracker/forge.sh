@@ -12,6 +12,8 @@ tracker/forge:assign()    { tracker/forge:own && forge:issue-assign "$1" "$2"; }
 
 tracker/forge:assignees() { tracker/forge:own && forge:issue-assignees "$1"; }
 
+tracker/forge:body()      { tracker/forge:own && forge:issue-body "$1"; }
+
 tracker/forge:close()     { tracker/forge:own && forge:issue-close "$1" "$2" "${3:-}"; }
 
 tracker/forge:comment()   { tracker/forge:own && forge:issue-comment "$1" "$2"; }

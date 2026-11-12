@@ -15,6 +15,10 @@
 #
 # Every issue it starts is assigned to the caller, whose worktree it is.
 #
+# kit work takes the primary issue's lease, as kit leases does: the paths the issue lists under a Paths heading, one a
+# list item, or ** when it lists none. A claim that another issue's live lease refuses is said, with who holds what,
+# and the work starts without a lease; take one when you have asked: kit leases take <reference> <path>…
+#
 # The names kit work makes are held to the policy in kit.yml, as kit policy holds them in CI: a branch, <key>-<slug>,
 # or a worktree, worktrees/<branch>, that the policy refuses is never made, and kit work refuses, naming the rule's
 # pattern, before it assigns or sweeps anything. So is a start commit whose subject the policy refuses: it is
@@ -44,7 +48,7 @@
 # Exits 0 when the work is started or resumed, 1 on a refusal or when the forge or the trackers in kit.yml cannot be
 # read, and 2 on a usage error or a reference no declared tracker reads.
 #
-# see: modules/bash/issue.sh, modules/bash/forge.sh, modules/bash/tracker.sh
+# see: modules/bash/issue.sh, modules/bash/forge.sh, modules/bash/tracker.sh, modules/bash/leases.sh
 
 set -o errexit -o nounset -o pipefail
 # shellcheck source=modules/bash/1st.sh

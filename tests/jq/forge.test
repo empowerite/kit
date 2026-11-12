@@ -488,3 +488,9 @@ import "forge" as forge; map([forge::github_protection_checks, forge::github_pro
 import "forge" as forge; [forge::ado_controls("u") | [.id, .checks, .reviews]]
 [{"id": 1, "isEnabled": true, "isBlocking": true, "type": {"displayName": "Build"}, "settings": {"buildDefinitionId": 5, "displayName": ""}}, {"id": 2, "isEnabled": true, "isBlocking": true, "type": {"displayName": "Status"}, "settings": {"statusGenre": "kit", "statusName": "CI"}}, {"id": 3, "isEnabled": true, "isBlocking": true, "type": {"displayName": "Required reviewers"}, "settings": {}}, {"id": 4, "isEnabled": true, "isBlocking": true, "type": {"displayName": "Minimum number of reviewers"}, "settings": {"minimumApproverCount": 2}}, {"id": 5, "isEnabled": true, "isBlocking": true, "type": {"displayName": "Comment requirements"}, "settings": {}}]
 [[1,["build 5"],0],[2,["kit/CI"],0],[3,[],null],[4,[],2],[5,[],0]]
+
+# A work item's description is HTML: a heading reads as ##, a list item as -, a paragraph or a break as a new line,
+# and an entity as its character, so a Paths heading and its list read as an issue's Markdown does.
+import "forge" as forge; forge::ado_text
+"<div>Fix &amp; test</div><h2 style=\"x\">Paths</h2><ul><li><code>docs/**</code></li><li>kit/bin/kit-x</li></ul><br/>"
+"Fix & test\n\n## Paths\n\n- docs/**\n\n- kit/bin/kit-x"

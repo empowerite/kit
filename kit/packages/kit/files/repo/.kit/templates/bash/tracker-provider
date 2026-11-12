@@ -1,6 +1,7 @@
 «head»
 tracker/«stem»:assign()«call_assign…= { error "not written yet"; return 1; }»
 tracker/«stem»:assignees()«call_assignees…= { error "not written yet"; return 1; }»
+tracker/«stem»:body()«call_body…= { error "not written yet"; return 1; }»
 tracker/«stem»:close()«call_close…= { error "not written yet"; return 1; }»
 tracker/«stem»:comment()«call_comment…= { error "not written yet"; return 1; }»
 tracker/«stem»:create()«call_create…= { error "not written yet"; return 1; }»

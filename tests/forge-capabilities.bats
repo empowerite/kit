@@ -44,11 +44,11 @@ added='"milestones","iterations","reviewers","merged","artifacts","environments"
 added+='"teams","bots","attestations","code-scanning","dependabot","secret-scanning","rulesets","bypasses",'
 added+='"check-runs","swimlanes","bot-accounts"'
 
-@test "GitHub implements contract 6 and GitLab 5, and each lacks the features no call of its own answers, swimlanes among them" {
+@test "GitHub and GitLab implement contract 7, and each lacks the features no call of its own answers, swimlanes among them" {
   git remote set-url origin https://github.com/empowerite/example.git
   run "${kit_root}/bin/kit" flow --capabilities
   [ "$status" -eq 0 ]
-  [ "$(jq -c '{contract, forge, provider}' <<<"$output")" = '{"contract":6,"forge":"github","provider":6}' ]
+  [ "$(jq -c '{contract, forge, provider}' <<<"$output")" = '{"contract":7,"forge":"github","provider":7}' ]
   [ "$(jq -c '[.features | to_entries[] | select(.value == "native") | .key] | length' <<<"$output")" = 30 ]
   [ "$(jq -c '.features.milestones, .features.swimlanes' <<<"$output" | paste -sd ' ' -)" = '"native" "none"' ]
   [ "$(jq -r '.features | keys_unsorted | join(" ")' <<<"$output")" \
@@ -56,7 +56,7 @@ added+='"check-runs","swimlanes","bot-accounts"'
   git remote set-url origin https://gitlab.com/empowerite/example.git
   run "${kit_root}/bin/kit" flow --capabilities
   [ "$(jq -c '{forge, provider, none: [.features | to_entries[] | select(.value == "none") | .key]}' <<<"$output")" \
-    = '{"forge":"gitlab","provider":5,"none":["attestations","bypasses","swimlanes","bot-accounts"]}' ]
+    = '{"forge":"gitlab","provider":7,"none":["attestations","bypasses","swimlanes","bot-accounts"]}' ]
 }
 
 @test "a provider that declares nothing implements contract 1: every feature of it, none added since" {
@@ -122,10 +122,10 @@ added+='"check-runs","swimlanes","bot-accounts"'
 }
 
 @test "a declaration of a contract above the kit's, or of a feature the contract does not have, is refused" {
-  provider ahead 7
+  provider ahead 8
   run call quota
   [ "$status" -eq 1 ]
-  [[ "$output" == *"the ahead forge implements contract '7', and this kit knows 1 to 6; move to a later kit: kit --version=<version> update"* ]]
+  [[ "$output" == *"the ahead forge implements contract '8', and this kit knows 1 to 7; move to a later kit: kit --version=<version> update"* ]]
   provider odd 2 telepathy
   run call quota
   [ "$status" -eq 1 ]

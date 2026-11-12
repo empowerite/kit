@@ -264,6 +264,25 @@ JSON
   done
 }
 
+@test "either forge reads an issue's body as Markdown, and an empty body as nothing" {
+  for forge in github gitlab
+  do
+    world "${forge}"
+    run --separate-stderr call issue-body 7
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+    fixture issue.json <<<'{"title": "Fix", "state": "OPEN", "body": "## Paths\n\n- `docs/**`", "description": "## Paths"}'
+    run call issue-body 7
+    [ "$status" -eq 0 ]
+    if [[ "${forge}" == github ]]
+    then
+      [ "$output" = $'## Paths\n\n- `docs/**`' ]
+    else
+      [ "$output" = '## Paths' ]
+    fi
+  done
+}
+
 @test "every provider unassigns, closes, comments on, and nests issues, and reads a change's state, in its own tool's words" {
   world github
   route gh 'issue edit 7 --remove-assignee bob' '!0'

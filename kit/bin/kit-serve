@@ -20,7 +20,7 @@
 #   - context, flow, help, kinds, packages, syntax, and version, which read only
 #   - check, lint, toolchains, and tools, which run what the repository's files name: the commands of its generated
 #     regions, the linters its rules name, and the toolchain's own definition, such as mise.toml or a flake
-#   - assign, close, gather, settle, unassign, and work, which act on issues and pull requests
+#   - assign, close, gather, leases, settle, unassign, and work, which act on issues, their leases, and pull requests
 #
 # A tool that reads only runs no command the repository's files name, takes no word that acts, reads no path outside
 # the repository, changes no file git sees, and never fetches. A tool's description is the verb's purpose and usage

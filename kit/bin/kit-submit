@@ -12,6 +12,10 @@
 # It commits nothing. What is staged stays staged, and is no part of the push: kit commit makes the commits, and kit
 # submit shares them. In a worktree several people or agents share, the index may hold another's work.
 #
+# It pushes the branch's own lease too, the one of the issue the branch's name starts with, to the primary remote, when
+# the clone holds one, so CI holds the branch to the claim kit leases shows here. A lease that cannot be pushed is
+# warned of.
+#
 # kit submit never forces. When the remote has commits this branch lacks, the push is refused and the remedy is kit
 # rebase. A conflict with the default branch never blocks sharing the work that was done.
 #
@@ -20,7 +24,7 @@
 # Exits 0 when the branch is at its remote, 1 on a refusal, and 2 on a usage error, as for a word given, which kit
 # commit takes.
 #
-# see: modules/bash/commit.sh, kit-commit, kit-rebase
+# see: modules/bash/commit.sh, modules/bash/leases.sh, kit-commit, kit-rebase
 
 set -o errexit -o nounset -o pipefail
 # shellcheck source=modules/bash/1st.sh
@@ -39,5 +43,6 @@ guard:arguments submit "$@" || exit $?
 
 guard:require tool:git tool:jq
 commit:submit
+leases:mirror "$(git symbolic-ref --quiet --short HEAD)"
 
 # ----------------------------------------------------------------------------------------------------------------------

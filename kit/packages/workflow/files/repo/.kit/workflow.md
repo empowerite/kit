@@ -14,12 +14,17 @@ repository's own rules in `AGENTS.md` apply as well. Where the two differ, `AGEN
      first command there
    - a branch, linked to the issue under Development
    - a draft pull request
+   - a lease on the paths the issue lists under a `Paths` heading, or on every path when it lists none
 3. Work in that worktree. Commit with `kit commit`. A commit's subject starts with its issue's reference, as in
    `#<N> <subject>`, and `kit commit` supplies `#<N>` from the branch when the subject lacks it.
    With `require_signing: true` in `kit.yml`, `kit commit`, `kit work`'s start commit, and `kit rebase` sign every
    commit they make, and refuse when git has no signing key; otherwise `kit commit` warns when commits here are not
    signed. Push with `kit submit`. Run `kit rebase` to bring the branch up to date with the default branch and push
    it.
+   Before you change a path, run `kit leases`: it says which issue's session holds what. Ask the holder before you
+   change a path another issue's lease holds; `kit commit` refuses it on the branch the lease is on. Claim the paths
+   you will change with `kit leases take <N> <path>…`, and keep the branch's changes inside its own lease, as
+   `kit policy` holds them in CI.
 4. Mark the pull request ready for review when the work is done: `kit ready`, on any forge, which also takes off the
    draft's stand-in where `kit.yml` chooses one. The pull request body is the report. It states:
    - what changed

@@ -153,6 +153,10 @@ added='"milestones","bots","attestations","code-scanning","dependabot","secret-s
   [ "$output" = ada ]
   run call issue-title 7
   [ "$output" = "Fix the thing" ]
+  # the work item has no description, which is no body
+  run --separate-stderr call issue-body 7
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
   run call issue-state 7
   [ "$output" = OPEN ]
   run call issue-assignees 7
@@ -343,7 +347,7 @@ JSON
   run "${kit_root}/bin/kit" flow --capabilities
   [ "$status" -eq 0 ]
   [ "$(jq -c '{forge, provider, none: [.features | to_entries[] | select(.value == "none") | .key]}' <<<"$output")" \
-    = "{\"forge\":\"ado\",\"provider\":5,\"none\":[\"linked-branches\",\"quota\",\"marks\",\"releases\",${added}]}" ]
+    = "{\"forge\":\"ado\",\"provider\":7,\"none\":[\"linked-branches\",\"quota\",\"marks\",\"releases\",${added}]}" ]
   for c in quota marks releases 'link-branch 7 main'
   do
     read -r -a words <<<"${c}" && run --separate-stderr call "${words[@]}"

@@ -19,6 +19,7 @@ see: [the code forges](forges.md), whose APIs GitHub Issues, GitLab, Azure Board
 | Capability | Kind | Seam call or kit verb |
 | --- | --- | --- |
 | An issue's title | read | `title`: `kit work` names the branch from it, `kit gather` |
+| An issue's body | read | `body`: `kit work` takes the paths its lease claims from a `Paths` heading |
 | An issue's state, open or closed | read | `state`: `kit work`, `kit linked`, `kit tidy`, `kit close` |
 | An issue's assignees | read | `assignees`: `kit work`, `kit assign`, `kit unassign` |
 | The caller's login in the tracker | read | `me`: `kit work` assigns the caller, `kit assign` |

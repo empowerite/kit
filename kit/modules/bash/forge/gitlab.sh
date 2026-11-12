@@ -134,6 +134,13 @@ forge/gitlab:issue-assignees() {
 
 # forge/gitlab:issue-close closes the issue. GitLab keeps no reason, so completed and not planned close it alike; a
 # duplicate is closed by the /duplicate quick action, which links it to the original.
+# forge/gitlab:issue-body prints the issue's description, Markdown, and nothing for an empty one.
+forge/gitlab:issue-body() {
+  local issue
+  forge/gitlab:ask issue "the body of #$1" "issues/$1" || return 1
+  forge/gitlab:fold "the body of #$1" "${issue}" --raw-output '.description // "" | strings // error | select(. != "")'
+}
+
 forge/gitlab:issue-close() {
   if [[ "$2" == duplicate ]]
   then
@@ -638,12 +645,13 @@ forge/gitlab:teams() {
     --arg host "https://${host}" 'import "forge" as forge; forge::gitlab_teams($members; $host; 20)'
 }
 
-# The provider implements contract 5. Its forge keeps no attestations kit can read, and no waivers: a dismissed
-# vulnerability is among the alerts; and no swimlanes, which no forge kit reaches has.
-forge/gitlab:contract() { printf '5\n'; }
+# The provider implements contract 7. Its forge keeps no attestations kit can read, and no waivers: a dismissed
+# vulnerability is among the alerts; no swimlanes, which no forge kit reaches has; and no bot account, as kit makes one
+# of a GitHub App alone.
+forge/gitlab:contract() { printf '7\n'; }
 
 forge/gitlab:lacks() {
-  printf '%s\n' attestations bypasses swimlanes
+  printf '%s\n' attestations bypasses swimlanes bot-accounts
 }
 
 # The seam's calls end here; what follows is this provider's own.

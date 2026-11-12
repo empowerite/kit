@@ -90,12 +90,13 @@ forge/ado:branch-for-issue() {
     '[.[] | (.sourceRefName | ltrimstr("refs/heads/")) | select(startswith("\($n)-"))] | .[0] // empty'
 }
 
-# The provider implements contract 5, and its forge lacks these features.
-forge/ado:contract() { printf '5\n'; }
+# The provider implements contract 7, and its forge lacks these features: a bot account among them, as kit makes one
+# of a GitHub App alone.
+forge/ado:contract() { printf '7\n'; }
 
 forge/ado:lacks() {
   printf '%s\n' quota marks releases linked-branches milestones bots attestations code-scanning dependabot \
-    secret-scanning bypasses swimlanes
+    secret-scanning bypasses swimlanes bot-accounts
 }
 
 forge/ado:bypasses() { return 3; }
@@ -189,6 +190,16 @@ forge/ado:issue-assignees() {
 
 # forge/ado:issue-close sets the work item's closing state. Azure Boards keeps no reason, so a work item not planned
 # or a duplicate is set to the removed state, and a duplicate also gets a comment naming the original.
+# forge/ado:issue-body prints the work item's description, which Azure Boards keeps as HTML, as the text a Markdown
+# reader would take from it: a heading as ## and its text, a list item as - and its text, a paragraph or a line break as
+# a new line, other tags dropped, and the entities read. An empty description prints nothing.
+forge/ado:issue-body() {
+  local item
+  forge/ado:ask item "the body of #$1" boards work-item show --id "$1" || return 1
+  forge/ado:fold "the body of #$1" "${item}" --raw-output 'import "forge" as forge;
+    .fields["System.Description"] // "" | strings // error | forge::ado_text | select(. != "")'
+}
+
 forge/ado:issue-close() {
   local state
   if [[ "$2" == completed ]]

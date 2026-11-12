@@ -13,6 +13,8 @@
 #     policy.commit_reference trailer, as the policy/conventional package sets it, it adds a Refs: #7 trailer instead,
 #     to a message that has none
 #   - judges the subject and the tree the commit will make by the repository's policy, as kit policy does in CI
+#   - refuses a staged path a live lease on the branch holds, as kit leases lists them, of an issue the commit does
+#     not name in its subject or a Refs: trailer, naming who took it: name that issue, or ask its holder
 #   - with require_signing true in kit.yml, refuses when git has no user.signingkey; otherwise it warns when commits
 #     here are not signed
 #
@@ -23,6 +25,8 @@
 # before the last commit that changed it, while the disk holds something else.
 #
 # With or without paths, it refuses when a commit landed on HEAD while the checks ran; run kit commit again.
+#
+# The commit renews the lease of each issue it names, by the lease's term, when the lease is live and on the branch.
 #
 # A commit from an index of its own, one GIT_INDEX_FILE names, would leave the shared index behind, its paths staged
 # as the commit reverted. So kit commit brings the shared index up to the commit, for the paths the commit changed
@@ -43,7 +47,7 @@
 #
 # Exits 0 on a commit, 1 on a refusal, and 2 on a usage error.
 #
-# see: modules/bash/commit.sh, kit-submit
+# see: modules/bash/commit.sh, modules/bash/leases.sh, kit-submit
 
 set -o errexit -o nounset -o pipefail
 # shellcheck source=modules/bash/1st.sh

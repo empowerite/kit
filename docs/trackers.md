@@ -107,6 +107,7 @@ A provider is `kit/modules/bash/tracker/<name>.sh`. It implements these calls:
 | Call | Prints |
 | --- | --- |
 | `title <id>` | the issue's title |
+| `body <id>` | the issue's body, as Markdown, and nothing for an empty one; `kit work` reads the paths its lease claims from it |
 | `state <id>` | `OPEN` or `CLOSED` |
 | `assignees <id>` | the assignees' logins, space-separated |
 | `assign <id> <login>` | nothing; adds the assignee |

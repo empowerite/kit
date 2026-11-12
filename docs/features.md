@@ -87,13 +87,27 @@ delivers these steps to agents as `.kit/workflow.md`; a repository that leaves i
    request closes, and assigns it to the caller when no one is assigned. A commit from an index of its own
    (`GIT_INDEX_FILE`) brings the shared index up to it, for the paths it changed alone.
 3. `kit submit` pushes the branch, setting the upstream the first time, and commits nothing: what is staged stays
-   staged, for `kit commit`. It never forces: when origin has moved, the remedy is `kit rebase`.
+   staged, for `kit commit`. It never forces: when origin has moved, the remedy is `kit rebase`. It pushes the
+   branch's lease too, so CI holds the branch to it.
 4. `kit rebase` rebases the worktree's branch onto the default branch at the primary remote and pushes it to its own
    name, never where `push.default` points. When origin's branch has commits the worktree lacks, it takes them
    first, and it forces only over the tip it read, so a commit pushed meanwhile is never overwritten. It refuses the
    desk, the default branch, and a worktree with uncommitted changes.
 5. `kit gate` runs the gate locally, with the same tools CI uses.
 6. A human merges, and `kit tidy` removes the finished worktrees and the branches whose upstream is gone.
+
+Sessions that work at once say which paths each will change with leases, so kit can tell them who holds what.
+A lease is a ref every worktree of the clone sees, `refs/kit/leases/<N>`, holding the paths an issue's work claims,
+who took it, on which branch, and until when: an hour after it is taken or renewed, by default. `kit work <N>` takes
+one for the paths the issue lists under a `Paths` heading, or `**`. `kit leases` lists them, and `kit leases take`,
+`renew`, and `release` change them, each as a compare and swap, so two claims at once are judged one after the
+other. A claim that may overlap another issue's live lease is refused, naming who holds it; the leases on one branch
+nest in the branch's own lease, the one of the issue its name starts with. `kit commit` refuses a staged path another
+issue's lease on the branch holds, unless the commit names that issue, and renews the leases of the issues it names.
+`kit policy`, in CI, refuses a path the branch changed outside its own lease. A lease is not a lock: it only says who
+holds what.
+
+see: [the leases design](superpowers/specs/2026-11-12-leases-design.md)
 
 `kit flow` draws where the work stands. Work moves left to right through five stages:
 

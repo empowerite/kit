@@ -19,6 +19,8 @@ tracker/web:assign() { tracker/web:refuse "$1" 'assign it'; }
 
 tracker/web:assignees() { tracker/web:refuse "$1" 'read its assignees'; }
 
+tracker/web:body() { tracker/web:refuse "$1" 'read its body'; }
+
 tracker/web:close() { tracker/web:refuse "$1" 'close it'; }
 
 tracker/web:comment() { tracker/web:refuse "$1" 'comment on it'; }

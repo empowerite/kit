@@ -186,7 +186,7 @@ forge is named in the `forge` or `forges` setting, or found from a CI runner's o
 - Every provider returns the same shape, so `kit flow` shows the same picture on either code forge.
 - Every call answers, answers none, fails with one line that says what could not be read, or is unsupported, and a
   list is whole or the call fails; the header of `kit/modules/bash/forge.sh` holds the contract.
-- A provider declares the contract's version it implements, 6 today, and the features its forge lacks: issues,
+- A provider declares the contract's version it implements, 7 today, and the features its forge lacks: issues,
   sub-issues, linked branches, drafts, closing issues, review threads, checks, quota, marks, releases, runs, labels,
   milestones, iterations, reviewers, merged changes, artifacts, environments, deployments, collaborators, teams, bots,
   attestations, code scanning, dependabot, secret scanning, rulesets, bypasses, check runs, swimlanes, and bot

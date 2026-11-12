@@ -19,6 +19,7 @@ forge/«stem»:environments()«call_environments…= { error "not written yet"; 
 forge/«stem»:issue-add-sub()«call_issue_add_sub…= { error "not written yet"; return 1; }»
 forge/«stem»:issue-assign()«call_issue_assign…= { error "not written yet"; return 1; }»
 forge/«stem»:issue-assignees()«call_issue_assignees…= { error "not written yet"; return 1; }»
+forge/«stem»:issue-body()«call_issue_body…= { error "not written yet"; return 1; }»
 forge/«stem»:issue-close()«call_issue_close…= { error "not written yet"; return 1; }»
 forge/«stem»:issue-comment()«call_issue_comment…= { error "not written yet"; return 1; }»
 forge/«stem»:issue-create()«call_issue_create…= { error "not written yet"; return 1; }»

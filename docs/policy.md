@@ -16,6 +16,12 @@ kit policy
 - On a runner, the refusals and the warnings also appear in the step summary.
 - `kit work` makes names that pass: it holds the branch and the worktree it would make to the rules first, and
   refuses, naming the pattern, before it assigns or sweeps anything. See [What kit work makes](#what-kit-work-makes).
+- A branch past the default one is held to its own lease too, the one of the issue its name starts with, as
+  `kit leases --check` holds it: each path the branch changed since its merge base with the base, outside the lease,
+  is refused, with the `kit leases take` that claims it. On a runner the lease is the primary remote's copy, which
+  `kit work` and `kit submit` push; the claim lives in a ref, never in the branch's tree, so no commit on the branch
+  widens it. A branch whose issue holds no lease is held to none, and the output says so. See
+  [the leases design](superpowers/specs/2026-11-12-leases-design.md).
 
 ## The facts
 

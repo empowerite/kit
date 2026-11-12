@@ -40,21 +40,24 @@ Four tools run what the repository's files name, so they do not say they read on
 Each carries `readOnlyHint` false, `destructiveHint` false, `idempotentHint` true, and `openWorldHint` false. A
 client that asks before a call that does not read only asks before these too.
 
-The workflow tools act on issues and pull requests, as the same verbs do in a terminal:
+The workflow tools act on issues, their leases, and pull requests, as the same verbs do in a terminal:
 
 | Tool | Runs | Destructive |
 | --- | --- | --- |
 | `assign` | `kit assign` | no |
 | `close` | `kit close` | yes: it closes issues |
 | `gather` | `kit gather` | no |
+| `leases` | `kit leases` | yes: it releases leases |
 | `settle` | `kit settle` | yes: it closes issues, or takes people off them |
 | `unassign` | `kit unassign` | yes: it takes people off issues |
 | `work` | `kit work` | no |
 
 Each says so in its annotations: `readOnlyHint` is false, `destructiveHint` is true where the table says yes,
-`idempotentHint` is true for all but `gather`, which creates an issue each time, and `openWorldHint` is true, as each
-asks the code forge. A client can then ask before it calls one. `work` is the one tool that writes the repository: it
-makes a branch, a worktree, which it places `.kit/` in, and a draft pull request.
+`idempotentHint` is true for all but `gather`, which creates an issue each time, and `leases`, whose take and renew
+move a lease's expiry each time, and `openWorldHint` is true, as each asks the code forge or, for `leases`, pushes to
+the primary remote. A client can then ask before it calls one. `work` is the one tool that writes the repository: it
+makes a branch, a worktree, which it places `.kit/` in, and a draft pull request. `leases` writes the clone's refs
+under `refs/kit/`, which no file git sees holds.
 
 Each tool is described and typed from the verb's header, by the functions `kit help` and `kit syntax` use. So the
 help, the syntax, and the server cannot drift apart.

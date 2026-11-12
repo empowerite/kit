@@ -14,6 +14,9 @@
 #
 # Every listed issue is assigned to the caller, as each tracker identifies the caller.
 #
+# issue:start takes the primary issue's lease in the worktree (issue:lease), for the paths the issue lists under a Paths
+# heading, or **, so the sessions that work at once can tell who holds what.
+#
 # issue:start never switches the checkout it runs from. It checks the branch out in worktrees/<key>-<slug> under
 # the main checkout, and hydrates it: what the kit delivers under .kit/ is in place before the first command runs
 # there. The key is the reference as it starts a branch name: 7 or ab4521. An existing branch, worktree, or pull
@@ -598,6 +601,30 @@ issue:sweep-apply() {
     || warn "${default_branch} could not fast-forward to origin; it is left as it was."
 }
 
+# issue:lease <worktree> <reference> takes the issue's lease in the worktree, as modules/bash/leases.sh keeps leases:
+# the paths the issue lists under a Paths heading, or ** when it lists none or its tracker keeps no body. Then it pushes
+# the lease to the primary remote, so CI holds the branch to it. A lease is no lock: a claim another issue's lease
+# refuses is said, with who holds what, and the work goes on without one.
+issue:lease() {
+  local wt=$1 ref=$2 body status=0
+  local -a paths=()
+  use leases
+  body=$(tracker:of "${ref}" body 2>/dev/null) || status=$?
+  if (( status == 0 ))
+  then
+    list:read paths leases:body-paths "${body}" || paths=()
+  elif (( status != 3 ))
+  then
+    warn "${ref}'s body could not be read, so its lease claims every path; name them: kit leases take ${ref} <path>…"
+  fi
+  if ! (cd "${wt}" && leases:take "${ref}" '' '' "${paths[@]}")
+  then
+    warn "${ref} starts without a lease; ask who holds those paths, then: kit leases take ${ref} <path>…"
+    return 0
+  fi
+  (cd "${wt}" && leases:mirror "$(git symbolic-ref --quiet --short HEAD)")
+}
+
 # issue:pull-request <branch> <default-branch> <title> prints the number of the branch's open pull request,
 # opening a draft if there is none. A draft's title, the issue's, that policy.change_title refuses is warned of,
 # named with the rule's pattern and remedy.
@@ -716,6 +743,7 @@ issue:start() {
     fi
   fi
   wt=$(issue:worktree "${main_root}" "${branch}") || return
+  issue:lease "${wt}" "${primary}"
   git -C "${main_root}" check-ignore --quiet worktrees 2>/dev/null \
     || warn "worktrees/ is not ignored; add /worktrees/ to .gitignore so a worktree never appears in a commit"
   issue:hydrate "${wt}" || return 1

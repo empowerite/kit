@@ -1,0 +1,15 @@
+ kit leases - lists, takes, renews, and releases the paths each issue's work claims
+
+   one of
+   *kit leases*  lists, takes, renews, and releases the paths each issue's work claims
+
+     --json   --jq
+                  one JSON object, {now, leases}: every lease, and whether it is live
+
+   take        claims the paths for the issue, here
+   renew       moves each lease's expiry to its term from now
+   release     deletes each lease, here and on the primary remote
+   --check     refuses a path the branch changed outside its own lease
+
+
+ kit leases

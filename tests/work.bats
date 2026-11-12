@@ -61,6 +61,33 @@ desk-world() {
   run ! git -C worktrees/7-fix-the-thing ls-files --error-unmatch .kit/1st.md
 }
 
+@test "kit work takes the issue's lease for the paths it lists under Paths, pushes it to origin, and ** for none" {
+  desk-world
+  fixture issue.json <<<'{"title": "Fix the thing", "state": "OPEN", "assignees": [{"login": "bob"}], "body": "Why.\n\n## Paths\n\n- `docs/**`\n- kit/bin/kit-work: the verb\n"}'
+  run "${kit_checkout}/bin/kit" work 7
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"#7 holds docs/** kit/bin/kit-work, until "* ]]
+  [ "$(cd worktrees/7-fix-the-thing && "${kit_checkout}/bin/kit" leases --json | jq -c '.leases[] | [.key, .paths, .branch]')" \
+    = '["7",["docs/**","kit/bin/kit-work"],"7-fix-the-thing"]' ]
+  [ "$(git ls-remote "${repo}.origin.git" 'refs/kit/*' | cut -f 2)" = refs/kit/leases/7 ]
+  # resumed, with a body that names no paths, the live lease keeps its paths and claims ** beside them
+  fixture issue.json <<<'{"title": "Fix the thing", "state": "OPEN", "assignees": [{"login": "ada"}], "body": ""}'
+  run "${kit_checkout}/bin/kit" work 7
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"#7 holds ** docs/** kit/bin/kit-work"* ]]
+}
+
+@test "kit work starts without a lease when another issue's live lease refuses the claim, naming who holds what" {
+  desk-world
+  git update-ref refs/kit/leases/9 "$(printf '{"issue": "#9", "paths": ["**"], "holder": "bob", "branch": "9-other", "expires": %s}' "$(( $(date +%s) + 600 ))" | git hash-object -w --stdin)"
+  run "${kit_checkout}/bin/kit" work 7
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"refusing to lease ** to #7: #9 holds **, taken by bob on 9-other"* ]]
+  [[ "$output" == *"#7 starts without a lease; ask who holds those paths, then: kit leases take #7 <path>…"* ]]
+  [ -d worktrees/7-fix-the-thing ]
+  [ "$(git for-each-ref --format='%(refname)' 'refs/kit/leases/*')" = refs/kit/leases/9 ]
+}
+
 @test "a worktree that declares unreleased is hydrated by its own kit, the version read as YAML: spaces and a comment beside it do not matter" {
   # the worktree is the kit: kit/bin/kit, a stand-in that records what it was asked, and 1st.sh beside it; its .git
   # file makes it a clone of its own, whose kit.yml the loader reads

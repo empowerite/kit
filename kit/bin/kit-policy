@@ -4,8 +4,8 @@
 # Usage:
 #   kit policy [--input | --facts=<file> | --rules [--json | --jq]]
 #
-# Fails when the branch, its commits, its change, or its tree breaks the repository's policy. kit policy collects
-# these facts once:
+# Fails when the branch, its commits, its change, or its tree breaks the repository's policy, or the branch changed a
+# path outside its lease. kit policy collects these facts once:
 #
 #   - the branch name
 #   - the worktree's path under the main checkout, as worktrees/7-fix-the-thing, in a worktree
@@ -39,6 +39,11 @@
 # A <file> that is relative starts from the directory the command was typed in. A file that is missing, or is not a
 # JSON object with a policy key, is refused with exit 2.
 #
+# A branch past the default one is held to its own lease, the one of the issue its name starts with, as kit leases
+# --check holds it: each path it changed since its merge base with the base, outside the lease, is refused. On a CI
+# runner, whose clone holds no lease, the lease is the primary remote's copy, which kit work and kit submit push. A
+# branch whose issue holds no lease is held to none, and the output says so.
+#
 # kit ci runs kit policy before the gate. On a CI runner, refusals are also written to the step summary.
 #
 # Arguments:
@@ -53,11 +58,12 @@
 #                     and engine is the engine that judges, patterns or opa
 #   --jq              the same JSON, formatted by jq for a person
 #
-# Exits 0 when the policy refuses nothing, with or without warnings, 1 on any refusal, when the forge cannot answer for
-# the open change, when linked_exempt in kit.yml or another fact cannot be read, or when the base cannot be named, is
-# not here, or its policy cannot be read, as when a package its kit.yml lists is not in reach, and 2 on a usage error.
+# Exits 0 when the policy refuses nothing, with or without warnings, 1 on any refusal, on a path outside the branch's
+# lease or a lease that does not read, when the forge cannot answer for the open change, when linked_exempt in kit.yml
+# or another fact cannot be read, or when the base cannot be named, is not here, or its policy cannot be read, as when
+# a package its kit.yml lists is not in reach, and 2 on a usage error.
 #
-# see: modules/bash/policy.sh, docs/policy.md
+# see: modules/bash/policy.sh, modules/bash/leases.sh, docs/policy.md
 
 set -o errexit -o nounset -o pipefail
 # shellcheck source=modules/bash/1st.sh
@@ -156,6 +162,16 @@ fi
 engine=$(policy:engine)
 warnings=$(policy:warn "${input}") || exit 1
 refusals=$(policy:deny "${input}") || exit 1
+# A branch past the default one is held to its own lease too, by the paths it changed since its base.
+leased=0
+if [[ -n "${past:-}" ]]
+then
+  use leases
+  base=$(policy:base) || exit 1
+  runner=false
+  ! policy:change-named || runner=true
+  leases:check "${past}" "${base}" "${runner}" || leased=1
+fi
 warning_count=0
 if [[ -n "${warnings}" ]]
 then
@@ -177,6 +193,7 @@ then
   summary "### ❌ ${count} refusal(s) by the policy" "" "- ${refusals//$'\n'/$'\n'- }"
   exit 1
 fi
+(( leased == 0 )) || exit 1
 with=''
 (( warning_count == 0 )) || with=", with ${warning_count} warning(s)"
 if jq --exit-status '.branch == null' "${input}" >/dev/null

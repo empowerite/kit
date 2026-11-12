@@ -87,7 +87,8 @@ in_tracker() {
 @test "an Azure DevOps work item answers the tracker's calls through az, its closing states read as CLOSED" {
   fixture active.json <<'JSON'
 {"id": 4521, "fields": {"System.Title": "Fix the claim form", "System.State": "Active",
- "System.AssignedTo": {"uniqueName": "bob@example.com"}}}
+ "System.AssignedTo": {"uniqueName": "bob@example.com"},
+ "System.Description": "<div>Fix the form.</div><h2>Paths</h2><ul><li>docs/**</li></ul>"}}
 JSON
   fixture done.json <<<'{"id": 4522, "fields": {"System.Title": "Old", "System.State": "Done"}}'
   fixture created.json <<<'{"id": 4600}'
@@ -102,6 +103,12 @@ JSON
   route az 'boards work-item update --id 4521 --discussion *' '!0'
   run in_tracker tracker:of 'AB#4521' title
   [ "$output" = "Fix the claim form" ]
+  # the description is HTML, read as the text of its Markdown; none is no body
+  run in_tracker tracker:of 'AB#4521' body
+  [ "$output" = $'Fix the form.\n\n## Paths\n\n- docs/**' ]
+  run --separate-stderr in_tracker tracker:of 'AB#4522' body
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
   run in_tracker tracker:of 'AB#4521' state
   [ "$output" = "OPEN" ]
   run in_tracker tracker:of 'AB#4522' state

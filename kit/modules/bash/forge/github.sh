@@ -316,6 +316,13 @@ forge/github:issue-assignees() {
 
 # forge/github:issue-close closes the issue with GitHub's reason: completed, not planned, or duplicate of the third
 # argument.
+# forge/github:issue-body prints the issue's body as GitHub keeps it, Markdown, and nothing for an empty one.
+forge/github:issue-body() {
+  local body
+  forge/github:ask body "the body of #$1" issue view "$1" --json body --jq '.body // ""' || return 1
+  [[ -z "${body}" ]] || printf '%s\n' "${body}"
+}
+
 forge/github:issue-close() {
   local -a how=(--reason "${2//-/ }")
   [[ "$2" != duplicate ]] || how+=(--duplicate-of "$3")
@@ -935,8 +942,8 @@ forge/github:teams() {
     'import "forge" as forge; forge::github_teams($members; 20)'
 }
 
-# The provider implements contract 6, and its forge lacks only swimlanes, which no forge kit reaches has.
-forge/github:contract() { printf '6\n'; }
+# The provider implements contract 7, and its forge lacks only swimlanes, which no forge kit reaches has.
+forge/github:contract() { printf '7\n'; }
 
 forge/github:lacks() {
   printf '%s\n' swimlanes

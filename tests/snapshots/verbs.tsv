@@ -19,6 +19,7 @@ hydrate	places what the active packages deliver under .kit/	installation
 install	mirrors the release into the repository and the home directory	installation
 issues	lists the forge's milestones and iterations of the repository	workflow
 kinds	lists the kinds of file, or the kinds a path is of	files
+leases	lists, takes, renews, and releases the paths each issue's work claims	workflow
 linked	refuses a pull request not linked to an open issue	checks
 lint	runs each rule's linter over the paths it governs	checks
 new	makes a new file, or a new kind, rule, package, template, or verb	files

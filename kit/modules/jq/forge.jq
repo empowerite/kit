@@ -458,6 +458,16 @@ def gitlab_pr_state:
 # Closed, Done, or Removed, as the ado tracker reads them.
 def ado_closed: (.fields["System.State"] // "") | IN("Closed", "Done", "Removed");
 
+# ado_text reads the HTML Azure Boards keeps a work item's description in and gives the text a Markdown reader would
+# take from it: a heading as ## and its text, a list item as - and its text, a paragraph, a division, or a line break
+# as a new line, every other tag dropped, the common entities read, and the blank lines at either end trimmed.
+def ado_text:
+  gsub("\r"; "")
+  | gsub("<h[1-6][^>]*>"; "\n## "; "i") | gsub("<li[^>]*>"; "\n- "; "i")
+  | gsub("<br\\s*/?>|</(p|div|h[1-6]|li)>"; "\n"; "i") | gsub("<[^>]*>"; "")
+  | gsub("&nbsp;"; " ") | gsub("&lt;"; "<") | gsub("&gt;"; ">") | gsub("&quot;"; "\"") | gsub("&#39;"; "'")
+  | gsub("&amp;"; "&") | gsub("^\\s+|\\s+$"; "");
+
 # ado_assignees reads a work item and gives its assignee's login as a list: Azure Boards has one assignee at most, named
 # by the unique name az signs in as.
 def ado_assignees: [.fields["System.AssignedTo"] | objects | .uniqueName // empty];

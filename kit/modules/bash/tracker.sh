@@ -36,6 +36,7 @@
 # prefix, and the provider reads its record's fields with tracker:field.
 #
 #   title <id>              the issue's title
+#   body <id>               the issue's body, as Markdown, and nothing for an empty one
 #   state <id>              OPEN or CLOSED
 #   assignees <id>          the assignees' logins, space-separated
 #   assign <id> <login>     adds the assignee
