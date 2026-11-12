@@ -96,27 +96,42 @@ lease() {
   [ "$(kit leases --json | jq -c '.leases[0] | [.paths, .live]')" = '[["kit"],true]' ]
 }
 
-@test "two sessions that claim overlapping paths at once: one lease lands, and the other is judged after it and refused" {
-  cd "${work}/desk"
-  for round in 1 2 3
-  do
-    (cd worktrees/7-fix-the-thing && if kit leases take 7 docs > "${work}/a.out" 2>&1; then echo 0; else echo 1; fi \
-      > "${work}/a.st") &
-    (cd worktrees/8-other && if kit leases take 8 docs/x.md > "${work}/b.out" 2>&1; then echo 0; else echo 1; fi \
-      > "${work}/b.st") &
-    wait
-    statuses="$(cat "${work}/a.st") $(cat "${work}/b.st")"
-    [[ "${statuses}" == '0 1' || "${statuses}" == '1 0' ]] || { echo "round ${round}: ${statuses}"; cat "${work}"/?.out; return 1; }
-    [ "$(git for-each-ref --format='%(refname)' 'refs/kit/leases/*' | wc -l | tr -d ' ')" = 1 ]
-    if [[ "${statuses}" == '0 1' ]]
-    then
-      grep --quiet 'refusing to lease docs/x.md to #8: #7 holds docs' "${work}/b.out"
-    else
-      grep --quiet 'refusing to lease docs to #7: #8 holds docs/x.md' "${work}/a.out"
-    fi
-    git update-ref -d refs/kit/leases/7 2>/dev/null || true  # the round's loser has none
-    git update-ref -d refs/kit/leases/8 2>/dev/null || true  # the round's loser has none
-  done
+@test "two sessions that claim overlapping paths at once: the one that read the leases before the other landed is refused" {
+  # Claimant A stops right after it reads the leases, and claimant B, another process, takes an overlapping lease in
+  # that gap. Two fifos order them, never the clock: A's write to read.fifo waits for B to open it, and B's write to
+  # done.fifo, after its take, lets A go on. A read the epoch before the leases, so B's take moved it, A's swap fails,
+  # and A, judged again, is refused, naming B. Were the epoch read after the leases, A would read B's epoch, its swap
+  # would land, and both would hold docs.
+  mkfifo "${work}/read.fifo" "${work}/done.fifo"
+  (
+    cd ../8-other
+    read -r _ < "${work}/read.fifo"
+    if kit leases take 8 docs/x.md > "${work}/b.out" 2>&1; then echo 0; else echo 1; fi > "${work}/b.st"
+    printf 'done\n' > "${work}/done.fifo"
+  ) &
+  b=$!
+  run kit-bash "use leases
+    eval \"\$(declare -f list:read | sed '1s/list:read/leases:list-read/')\"
+    list:read() {
+      local status=0
+      leases:list-read \"\$@\" || status=\$?
+      if [[ \"\$2 \$3\" == 'git for-each-ref' && ! -e '${work}/paused' ]]
+      then
+        : > '${work}/paused'
+        printf 'read\\n' > '${work}/read.fifo'
+        read -r _ < '${work}/done.fifo'
+      fi
+      return \"\${status}\"
+    }
+    leases:take 7 '' ada docs"
+  # A that never reached the gap leaves B waiting on read.fifo; it is let go, and the test fails below
+  [[ -e "${work}/paused" ]] || { kill "${b}" 2>/dev/null || true; }  # B waits on a fifo A never writes
+  wait "${b}" || true  # B's own status is in b.st
+  [ -e "${work}/paused" ]
+  [ "$(cat "${work}/b.st")" = 0 ]
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"refusing to lease docs to #7: #8 holds docs/x.md, taken by ada on 8-other"* ]]
+  [ "$(git for-each-ref --format='%(refname)' 'refs/kit/leases/*')" = refs/kit/leases/8 ]
 }
 
 @test "a claim that loses the race is judged again: the epoch moved under it, so the new lease refuses it" {
