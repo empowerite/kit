@@ -115,6 +115,8 @@ kit runs nothing in a clone until you trust it.
   tools it downloads, and the `lint:` command of each rule and style. Then it asks you, and remembers your answer for
   the clone and all its worktrees, with a digest of what it asks.
 - In a terminal, the first kit command in a clone you have not trusted asks the same question, and runs after a yes.
+  Bare `kit` and `kit tui` open kittui, which asks in a dialog before it reads anything: Trust, or Not now, which
+  leaves the clone untrusted. A plain click takes either.
 - A pull that changes what the clone asks, such as a new gate or a new `lint:` command, withdraws the trust, and kit
   asks again. A pull that changes only the code those name keeps it, and so does what kit writes itself, such as the
   files it places under `.kit/` and the version `kit update` moves.

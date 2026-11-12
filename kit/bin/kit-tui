@@ -12,6 +12,11 @@
 # it as kit tui -- <verb> <argument>…, when stdin, stdout, and stderr are terminals. The words follow a --, so kit
 # reads none of them as its own.
 #
+# In a clone kit does not trust yet, kittui asks you to trust it before it reads anything there: it names the clone and
+# what trusting it lets kit run, and offers Trust, which runs kit trust --yes on it, and Not now, which leaves it
+# untrusted and kittui with it. bin/kit, the loader, lets kit tui through in such a clone on a terminal, on the kit you
+# installed.
+#
 # kit tui runs kittui, which each release carries. In a checkout of the kit, it builds one from projects/tui/ with go,
 # once for each change to its sources or to go; a kittui on PATH is the last resort. kittui needs a terminal on stdin,
 # stdout, and stderr. Without one, kit tui refuses before it builds anything.

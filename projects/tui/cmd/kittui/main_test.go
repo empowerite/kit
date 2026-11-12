@@ -237,6 +237,7 @@ func TestAProgramThatCannotRunIsKittuisLine(t *testing.T) {
 	}
 	onTerminal(t, ending(tea.KeyPressMsg{Code: tea.KeyEscape}))
 	t.Setenv("KIT", testkit.Runner(t, "flow").Kit)
+	t.Setenv("FAKE_FLOW_TRUSTED", "1")
 	t.Setenv("FAKE_FLOW_REFUSE", "stages")
 	var stderr bytes.Buffer
 	if code := run([]string{"flow"}, &stderr); code != 2 || !strings.Contains(stderr.String(), "refuses for the test") {

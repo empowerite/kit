@@ -1,7 +1,8 @@
 // kittui is kit's interactive terminal UI: kit welcome's guide, which bare kit opens too; the palette of verbs, which
 // kit help opens; the form that finishes a verb's command line when the verb is short of its arguments; and kit flow's
 // picture and kit workspace's.
-// kit tui, kit flow, kit workspace, kit packages, and kit welcome exec it; it runs kit for everything it knows.
+// kit tui, kit flow, kit workspace, kit packages, and kit welcome exec it; it runs kit for everything it knows. In a
+// clone kit does not trust yet, it asks the person to trust it first, as internal/trust's dialog does.
 package main
 
 import (
@@ -20,6 +21,7 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/screens"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/transcript"
+	"github.com/empowerite/kit/projects/tui/internal/trust"
 	"github.com/empowerite/kit/projects/tui/internal/tutorials"
 	"github.com/empowerite/kit/projects/tui/internal/welcome"
 )
@@ -53,6 +55,9 @@ func run(args []string, stderr io.Writer) int {
 		return 2
 	}
 	r := kit.New()
+	if code, on := asked(r, stderr); !on {
+		return code
+	}
 	if appVerb(verb) || verb == "welcome" {
 		r.Group, words = workspaceOf(words)
 	}
@@ -75,6 +80,32 @@ func run(args []string, stderr io.Writer) int {
 		return finish(shown, stderr, func(verb string, args []string) error { return execKit(r, verb, args) })
 	}
 	return ended(root.Shown())
+}
+
+// asked asks the person to trust the clone kittui runs in, where kit does not trust it yet, as it asks now, before
+// kittui reads anything there: it goes on where kit trusts the clone, as it did or after Trust; and it ends otherwise,
+// with 130 on ctrl-c, and with 1 and kit's line on Not now, which leaves kit on what an untrusted clone allows, kit
+// help, kit version, and kit trust. A kit that cannot answer is kit's refusal, or kittui's own.
+func asked(r kit.Runner, stderr io.Writer) (int, bool) {
+	name, trusted, err := r.Trust()
+	if err != nil {
+		return refuse(err, stderr), false
+	}
+	if trusted {
+		return 0, true
+	}
+	final, err := runModel(trust.Open(r, name))
+	if err != nil {
+		return failed(err, stderr), false
+	}
+	switch m := final.(trust.Model); {
+	case m.Interrupted():
+		return 130, false
+	case !m.Trusted():
+		fmt.Fprintln(stderr, "❌ "+trust.Untrusted(name))
+		return 1, false
+	}
+	return 0, true
 }
 
 // open makes the screen kittui opens on: for flow, Flow, on the stage its words name; for an app verb, as workspace or

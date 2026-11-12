@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# fake-kit - stands in for kit in the trust dialog's tests: answers kit trust --check, --asks, and --yes (test helper)
+# ----------------------------------------------------------------------------------------------------------------------
+# trust --check prints /the/clone and exits 1, as for a clone kit does not trust, or 0 when FAKE_TRUST_TRUSTED is set.
+# trust --asks prints what the clone asks, two lines, nothing when FAKE_TRUST_ASKS=none, and refuses with exit 2 when
+# FAKE_TRUST_ASKS=refuse. trust --yes <path> writes its words to the file FAKE_TRUST_RECORD names, when it is set, and
+# refuses with exit 1 when FAKE_TRUST_REFUSE is set. Any other call refuses with exit 2.
+
+set -o errexit -o nounset -o pipefail
+
+case "${1:-} ${2:-}" in
+  ('trust --check')
+    printf '/the/clone\n'
+    [[ -n "${FAKE_TRUST_TRUSTED:-}" ]]
+    ;;
+  ('trust --asks')
+    case "${FAKE_TRUST_ASKS:-}" in
+      (none) ;;
+      (refuse)
+        echo "❌ kit trust: kit.yml cannot be read for the test" >&2
+        exit 2
+        ;;
+      (*)
+        printf 'run bin/ci for kit gate (gate)\n'
+        printf 'run shellcheck --shell=bash for kit lint (lint: in .kit/rules/bash.md)\n'
+    esac
+    ;;
+  ('trust --yes')
+    if [[ -n "${FAKE_TRUST_REFUSE:-}" ]]
+    then
+      echo "❌ the trust file cannot be written for the test" >&2
+      exit 1
+    fi
+    [[ -z "${FAKE_TRUST_RECORD:-}" ]] || printf '%s\n' "$*" >> "${FAKE_TRUST_RECORD}"
+    ;;
+  (*)
+    echo "❌ no kit verb '${1:-}' in the trust fake" >&2
+    exit 2
+esac
+
+# ----------------------------------------------------------------------------------------------------------------------

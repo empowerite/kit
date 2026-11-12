@@ -483,6 +483,45 @@ func TestTrustedIsKitTrustCheck(t *testing.T) {
 	}
 }
 
+// Trust gives kit trust --check's name and answer: trusted, not trusted, and no clone, which needs no trust; a kit that
+// cannot run is an error. Asks gives kit trust --asks's lines, and TrustClone runs kit trust --yes on the name.
+func TestTrustAsksAndTrustCloneAreKitTrust(t *testing.T) {
+	if name, ok, err := fake(t, "").Trust(); name != "/the/clone" || !ok || err != nil {
+		t.Errorf("trusted: %q %v %v", name, ok, err)
+	}
+	t.Setenv("FAKE_KIT_REFUSE", "trust")
+	if name, ok, err := fake(t, "").Trust(); name != "/the/clone" || ok || err != nil {
+		t.Errorf("not trusted: %q %v %v", name, ok, err)
+	}
+	t.Setenv("FAKE_KIT_REFUSE", "trust-no-clone")
+	if name, ok, err := fake(t, "").Trust(); name != "" || !ok || err != nil {
+		t.Errorf("no clone: %q %v %v", name, ok, err)
+	}
+	t.Setenv("FAKE_KIT_REFUSE", "")
+	gone := Runner{Kit: filepath.Join(t.TempDir(), "no-kit"), Dir: t.TempDir()}
+	if _, ok, err := gone.Trust(); ok || err == nil {
+		t.Errorf("no kit: %v %v", ok, err)
+	}
+	if asks, err := fake(t, "").Asks(); err != nil || len(asks) != 2 || asks[0] != "run bin/ci for kit gate (gate)" {
+		t.Errorf("asks: %q %v", asks, err)
+	}
+	if _, err := gone.Asks(); err == nil {
+		t.Error("asks of no kit")
+	}
+	record := filepath.Join(t.TempDir(), "record")
+	t.Setenv("FAKE_KIT_RECORD", record)
+	if err := fake(t, "").TrustClone("/the/clone"); err != nil {
+		t.Fatal(err)
+	}
+	if said, err := os.ReadFile(record); err != nil || string(said) != "trust --yes /the/clone\n" {
+		t.Errorf("kit ran %q (%v)", said, err)
+	}
+	t.Setenv("FAKE_KIT_REFUSE", "trust")
+	if err := fake(t, "").TrustClone("/the/clone"); err == nil {
+		t.Error("a refusal is no error")
+	}
+}
+
 func TestRootIsKitRoot(t *testing.T) {
 	if root, err := fake(t, "").Root(); err != nil || root != "/the/release" {
 		t.Errorf("Root: %q, %v", root, err)

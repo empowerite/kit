@@ -6,7 +6,9 @@
 # another flag of flow is refused, and a stage echoes its words as JSON, after sleeping FAKE_KIT_SLEEP seconds when it
 # is set, with the sleep's pid written to the file FAKE_KIT_RECORD names; workspace --stages names two stages, each
 # other app verb's --stages its own, as kit audit's five, and a stage of theirs answers with no rows; root prints a
-# fixed directory, trust --check holds unless FAKE_KIT_REFUSE=trust, and welcome --checks the welcome screen's fixture;
+# fixed directory, trust --check prints /the/clone and holds unless FAKE_KIT_REFUSE=trust, which refuses trust --yes
+# too, and finds no clone, exit 2, for FAKE_KIT_REFUSE=trust-no-clone, trust --asks prints two lines, trust --yes writes
+# its words to the file FAKE_KIT_RECORD names, and welcome --checks the welcome screen's fixture;
 # any other verb's arguments and working directory, welcome --fix's and --keep='s too, are written to that file, for the
 # exec test to read, and --keep= then prints the check kept, or FAKE_KIT_KEPT when it is set; FAKE_KIT_REFUSE=welcome
 # refuses those two with exit 2. Every syntax answer about the verb FAKE_KIT_REFUSE names (its grammar, choices,
@@ -224,7 +226,23 @@ case "${1:-}" in
     printf '/the/release\n'
     ;;
   (trust)
-    [[ "${FAKE_KIT_REFUSE:-}" != trust ]]
+    case "${2:-}" in
+      (--asks)
+        printf 'run bin/ci for kit gate (gate)\nrun shellcheck for kit lint (lint: in .kit/rules/bash.md)\n'
+        ;;
+      (--yes)
+        [[ "${FAKE_KIT_REFUSE:-}" != trust ]] || { echo "❌ kit trust refuses for the test" >&2; exit 1; }
+        [[ -z "${FAKE_KIT_RECORD:-}" ]] || printf '%s\n' "$*" > "${FAKE_KIT_RECORD}"
+        ;;
+      (*)
+        if [[ "${FAKE_KIT_REFUSE:-}" == trust-no-clone ]]
+        then
+          echo "❌ . is in no clone" >&2
+          exit 2
+        fi
+        printf '/the/clone\n'
+        [[ "${FAKE_KIT_REFUSE:-}" != trust ]]
+    esac
     ;;
   (tutorials)
     [[ -z "${FAKE_KIT_RECORD:-}" ]] || printf '%s\n' "$*" > "${FAKE_KIT_RECORD}"

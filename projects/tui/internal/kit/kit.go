@@ -648,6 +648,43 @@ func (r Runner) Trusted() bool {
 	return err == nil
 }
 
+// Trust says whether kit trusts the clone the runner runs in, as it asks now, and the name kit trusts it by, as kit
+// trust --check prints them; outside a clone, where kit needs no trust and names none, it is trusted with no name.
+func (r Runner) Trust() (string, bool, error) {
+	out, err := r.run("trust", "--check")
+	var refusal *ExitError
+	switch {
+	case err == nil:
+		return strings.TrimSpace(string(out)), true, nil
+	case errors.As(err, &refusal) && refusal.Code == 1:
+		return strings.TrimSpace(string(refusal.Stdout)), false, nil
+	case errors.As(err, &refusal) && refusal.Code == 2:
+		return "", true, nil
+	}
+	return "", false, err
+}
+
+// Asks gives what the clone the runner runs in asks kit to run, a line each, as kit trust --asks prints them.
+func (r Runner) Asks() ([]string, error) {
+	out, err := r.run("trust", "--asks")
+	if err != nil {
+		return nil, err
+	}
+	var asks []string
+	for _, line := range strings.Split(string(out), "\n") {
+		if line != "" {
+			asks = append(asks, line)
+		}
+	}
+	return asks, nil
+}
+
+// TrustClone has kit trust the clone kit names so, as kit trust --yes <name> records it; kit's refusal is an ExitError.
+func (r Runner) TrustClone(name string) error {
+	_, err := r.run("trust", "--yes", name)
+	return err
+}
+
 // Root gives the directory of the release that runs, as kit root prints it.
 func (r Runner) Root() (string, error) {
 	out, err := r.run("root")

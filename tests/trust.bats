@@ -51,8 +51,10 @@ answering() {
   run "${kit}" check
   [ "$status" -eq 1 ]
   [[ "$output" == *"kit runs nothing in $(pwd -P) until you trust it; see what it asks kit to run, and trust it: kit trust"* ]]
+  # bare kit, kit tui, off a terminal, where kittui could not ask
   run "${kit}"
   [ "$status" -eq 1 ]
+  [[ "$output" == *"kit runs nothing in $(pwd -P) until you trust it"* ]]
   run "${kit_checkout}/bin/kit-check"
   [ "$status" -eq 1 ]
   [[ "$output" == *"kit runs nothing in $(pwd -P) until you trust it"* ]]
@@ -405,6 +407,23 @@ answering() {
   chmod u+w .kit/.gitignore
   run "${kit}" trust --check
   [ "$status" -eq 1 ]
+}
+
+@test "on a terminal, bare kit and kit tui run kittui in a clone you have not trusted, which asks itself" {
+  # the fake go and the fake kittui first on PATH, as tests/flow.bats puts them: kit builds kittui with the fake go,
+  # and it prints "kittui native-native" and its arguments
+  mkdir -p "${BATS_TEST_TMPDIR}/fake"
+  ln -s "${BATS_TEST_DIRNAME}/fakes/fake-kittui" "${BATS_TEST_TMPDIR}/fake/kittui"
+  ln -s "${BATS_TEST_DIRNAME}/fakes/fake-go" "${BATS_TEST_TMPDIR}/fake/go"
+  export FAKES="${BATS_TEST_TMPDIR}/fake" PATH="${BATS_TEST_TMPDIR}/fake:${PATH}"
+  own-kit
+  run pty "'${kit}'"
+  [[ "$output" == *"kittui native-native"* ]]
+  [[ "$output" != *"until you trust it"* ]]
+  run pty "'${kit}' tui -- commit"
+  [[ "$output" == *"kittui native-native -- commit"* ]]
+  [ ! -s "${trusted}" ]
+  [ ! -e "${BATS_TEST_TMPDIR}/ran" ]
 }
 
 # ----------------------------------------------------------------------------------------------------------------------
