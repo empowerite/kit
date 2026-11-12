@@ -92,7 +92,7 @@ func (m Model) control() string {
 // menuBar gives the menu bar, as internal/shell draws every screen's: the kit menu's = before kit tutorials; the
 // search field, and no workspace menu: the tutorials are not about a workspace.
 func (m Model) menuBar() shell.MenuBar {
-	return shell.MenuBar{Screen: appLabel, Open: m.appMenu.Open, Search: m.searchLine()}
+	return shell.MenuBar{Screen: appLabel, Open: m.appMenu.Open, Crumb: m.appMenu.Crumb, Search: m.searchLine()}
 }
 
 // bottom gives the screen's last line: the notice while there is one, else what the table did, or why not, while it
@@ -130,7 +130,7 @@ func (m Model) keys() shell.Path {
 	if layer {
 		return shell.Path{seg}
 	}
-	path := shell.Path{shell.ScreenKeys()}
+	path := shell.Path{shell.ScreenKeys(shell.CrumbOf(m.appMenu.Crumb)...)}
 	switch {
 	case m.read.open && !m.search.Focused:
 		seg := shell.Segment{Bindings: []shell.Binding{shell.Bind("esc", "cards"),

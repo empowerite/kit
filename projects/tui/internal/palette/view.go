@@ -17,7 +17,7 @@ import (
 // menuBar gives the menu bar, as internal/shell draws every screen's: the kit menu's = before kit help; the workspace
 // menu, which names the workspace; and the search field.
 func (m Model) menuBar() shell.MenuBar {
-	return shell.MenuBar{Screen: appLabel, Open: m.appMenu.Open, Workspace: m.books.Label(), Search: m.searchLine()}
+	return shell.MenuBar{Screen: appLabel, Open: m.appMenu.Open, Workspace: m.books.Label(), Crumb: m.appMenu.Crumb, Search: m.searchLine()}
 }
 
 // searchAt gives the column the search starts at on the menu bar, as internal/shell puts every screen's.
@@ -85,7 +85,7 @@ func (m Model) keys() shell.Path {
 	if m.search.Focused {
 		search := shell.SearchKeys("verbs", m.search.Query, len(m.recent.Items) > 0)
 		search.Passes = append(search.Passes, "=")
-		return shell.Path{shell.WorkspaceScreenKeys(), search}
+		return shell.Path{shell.WorkspaceScreenKeys(shell.CrumbOf(m.appMenu.Crumb)...), search}
 	}
 	seg, _ := m.sheet.Keys()
 	seg.Bindings = append([]shell.Binding(nil), seg.Bindings...)
@@ -97,7 +97,7 @@ func (m Model) keys() shell.Path {
 	if _, ok := m.highlighted(); ok && m.sheet.InRows() {
 		seg = seg.With(shell.Bind("⏎", "open", "enter"))
 	}
-	return shell.Path{shell.WorkspaceScreenKeys(), seg}
+	return shell.Path{shell.WorkspaceScreenKeys(shell.CrumbOf(m.appMenu.Crumb)...), seg}
 }
 
 // page wraps a text to the width, keeping each line's indent, and gives its lines. A width counts what shows, so the

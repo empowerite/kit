@@ -133,7 +133,7 @@ func (m Model) paneHeight() int { return max(1, m.height-m.paneTop()-2) }
 // workspace menu, which names the workspace; maximized, the selected tab, as the bar draws it but its number in place
 // of its glyph, its : last; and the search field.
 func (m Model) menuBar() shell.MenuBar {
-	b := shell.MenuBar{Screen: appLabel, Open: m.appMenu.Open, Workspace: m.books.Label(), Search: m.searchLine()}
+	b := shell.MenuBar{Screen: appLabel, Open: m.appMenu.Open, Workspace: m.books.Label(), Crumb: m.appMenu.Crumb, Search: m.searchLine()}
 	if m.maximized {
 		b.On = m.bar().NumberedLabel()
 	}
@@ -168,7 +168,7 @@ func (m Model) keys() shell.Path {
 		// the bar is not there to move along
 		bar.Bindings = slices.DeleteFunc(bar.Bindings, func(b shell.Binding) bool { return b.Key == "⇥·⇧⇥" })
 	}
-	path := shell.Path{shell.WorkspaceScreenKeys(), bar}
+	path := shell.Path{shell.WorkspaceScreenKeys(shell.CrumbOf(m.appMenu.Crumb)...), bar}
 	switch {
 	case m.search().Focused:
 		search := shell.SearchKeys(down, m.search().Query, m.recalls())

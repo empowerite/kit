@@ -45,7 +45,7 @@ func (m Model) linked(to shell.Screen) (tea.Model, tea.Cmd) {
 	}
 	next, cmd := m.show(to)
 	n := next.(Model)
-	if n.here != to || n.here == from.from {
+	if n.here != to || n.here == from.from && !chains(to) {
 		return n, cmd
 	}
 	n.crumb = from
@@ -54,6 +54,10 @@ func (m Model) linked(to shell.Screen) (tea.Model, tea.Cmd) {
 	}
 	return n.toldCrumb(), cmd
 }
+
+// chains says whether a link from the screen to itself leaves the place it was followed from as the crumb: a tutorial's
+// page, which a link on it replaces with another's, and ⌫ brings back; any other screen shows its place by its own.
+func chains(s shell.Screen) bool { return s == shell.Tutorials }
 
 // back shows the crumb's place again, put back where it stood, with its own crumb.
 func (m Model) back() (tea.Model, tea.Cmd) {

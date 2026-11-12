@@ -3,6 +3,7 @@
 package screens
 
 import (
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -79,12 +80,20 @@ func TestCrumbsChainAndEachGoesBackToTheViewItLeft(t *testing.T) {
 	m.Close()
 }
 
+// bare is a screen that draws no crumb, in the help's place.
+type bare struct{}
+
+func (bare) Init() tea.Cmd                         { return nil }
+func (b bare) Update(tea.Msg) (tea.Model, tea.Cmd) { return b, nil }
+func (bare) View() tea.View                        { return tea.NewView("") }
+
 // The app's menu shows a screen with no crumb, and drops the chain: the app a link showed, shown again by the menu,
-// has none either; so does a link to a screen that draws no crumb, as the help.
+// has none either; so does a link to a screen that draws no crumb, here a bare one in the help's place.
 func TestTheAppsMenuShowsAScreenWithNoCrumb(t *testing.T) {
 	m := onRepositoriesIncoming(t)
+	m.made[shell.Help] = bare{}
 	if m = drive(m, shell.SwitchMsg{Screen: shell.Help, Crumb: true}); m.here != shell.Help || m.crumb != nil {
-		t.Errorf("a link to the help, on %s, kept the crumb %+v", m.here, m.crumb)
+		t.Errorf("a link to a bare screen, on %s, kept the crumb %+v", m.here, m.crumb)
 	}
 	m = drive(m, shell.SwitchMsg{Screen: shell.Repositories})
 	m = drive(m, shell.JumpMsg{Screen: shell.Changes, To: "changes/#2"})
@@ -177,9 +186,14 @@ func TestEveryLinkOnAShippedTutorialOpensAScreenThatLeadsBack(t *testing.T) {
 				m.Close()
 				continue
 			}
+			// a tutorial's page is read by a command, which step does not run: the cards stand until it does
+			base := path.Base(stage)
+			if unescaped, err := url.PathUnescape(base); err == nil {
+				base = unescaped // a term of several words, as pull%20request
+			}
 			if name, _ := m.made[m.here].(spotted).Spot(); msg != (shell.SwitchMsg{Screen: shell.Screen(screen),
-				Crumb: true}) && !strings.HasSuffix(name, path.Base(stage)) {
-				t.Errorf("%s stands on %q", where, name)
+				Crumb: true}) && screen != string(shell.Tutorials) && !strings.HasSuffix(name, base) {
+				t.Errorf("%s stands on %q", stage, name)
 			}
 			if m = step(m, testkit.Press("backspace")); m.here != shell.Tutorials {
 				t.Errorf("%s: ⌫ went to %s", where, m.here)
