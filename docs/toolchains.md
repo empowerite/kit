@@ -108,8 +108,10 @@ name too: it chooses not to use a toolchain.
 
 ## `kit toolchains`
 
-Lists each provider, one row for each role it fills. The columns mark whether it is usable, active, and chosen
-here. ➕ marks brew where it fills in. `--json` prints one object per row, with `fills` for that.
+Lists each provider, one row for each role it serves. The columns mark whether it is usable here (✅), already
+inside now (⚡), and the one kit uses (📌). ➕ marks brew where it adds the rest: it installs the Brewfile's tools the
+chosen toolchain does not pin. `--json` prints one object per row, with `fills` true for that. kittui's table says
+the same under the headings usable here, inside now, kit uses, and adds the rest.
 
 ## `kit tools`
 

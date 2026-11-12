@@ -79,6 +79,12 @@
     {"name": "Service", "glyph": "🔌", "meaning": "service", "more": "a capability kit uses, and what answers it"},
     {"name": "Toolchain", "glyph": "🧰", "meaning": "toolchain",
      "more": "what installs the tools, the system's or the project's"},
+    {"name": "Usable", "glyph": "✅", "meaning": "usable here",
+     "more": "its tool is installed here, and for the project, its file is too"},
+    {"name": "Inside", "glyph": "⚡", "meaning": "inside now", "more": "the run is already inside it"},
+    {"name": "InUse", "glyph": "📌", "meaning": "kit uses it", "more": "the one kit uses for its role"},
+    {"name": "Adds", "glyph": "➕", "meaning": "adds the rest",
+     "more": "brew, installing the Brewfile's tools the chosen toolchain does not pin"},
     {"name": "Tool", "glyph": "🔩", "meaning": "tool", "more": "a tool kit pins, and the version installed"},
     {"name": "Setting", "glyph": "🔧", "meaning": "setting",
      "more": "a key of kit.yml, its value set there or its default"},
@@ -189,7 +195,8 @@
     {"screen": "platform", "stage": "services", "glyph": "Service",
      "legend": [{"name": "Service"}, {"name": "Failed"}]},
     {"screen": "platform", "stage": "toolchains", "glyph": "Toolchain",
-     "legend": [{"name": "Toolchain"}, {"name": "Failed"}]},
+     "legend": [{"name": "Toolchain"}, {"name": "Usable"}, {"name": "Inside"}, {"name": "InUse"},
+                {"name": "Adds"}, {"name": "Failed"}]},
     {"screen": "platform", "stage": "tools", "glyph": "Tool", "legend": [{"name": "Tool"}, {"name": "Failed"}]},
     {"screen": "platform", "stage": "settings", "glyph": "Setting", "legend": [{"name": "Setting"}, {"name": "Failed"}]}
   ]

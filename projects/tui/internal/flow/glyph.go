@@ -73,6 +73,10 @@ const (
 	Policy      = "📏" // policy rule
 	Service     = "🔌" // service
 	Toolchain   = "🧰" // toolchain
+	Usable      = "✅" // usable here
+	Inside      = "⚡" // inside now
+	InUse       = "📌" // kit uses it
+	Adds        = "➕" // adds the rest
 	Tool        = "🔩" // tool
 	Setting     = "🔧" // setting
 	Other       = "🔳" // other state
@@ -287,6 +291,10 @@ var legends = map[string][]entry{
 	},
 	"platform/toolchains": {
 		{Toolchain, "toolchain"},
+		{Usable, "usable here"},
+		{Inside, "inside now"},
+		{InUse, "kit uses it"},
+		{Adds, "adds the rest"},
 		{Failed, "failed"},
 	},
 	"platform/tools": {

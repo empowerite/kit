@@ -1129,7 +1129,7 @@
     },
     {
       "stage": "platform/toolchains", "command": ["platform", "toolchains", "--json"], "staged": true,
-      "summary": "The toolchains kit can use, and which one fills each role",
+      "summary": "The toolchains kit can use, and which one kit uses for each role",
       "takes": ["workspace"], "record": ".rows[]", "empty": "no toolchain",
       "fields": [
         {"id": "provider", "label": "provider", "type": "enum", "path": ".provider", "sort": true, "group": true,
@@ -1144,14 +1144,18 @@
          "filter": true, "renderings": ["text"], "dim": true, "placement": "group", "depth": 3},
         {"id": "role", "label": "role", "type": "enum", "path": ".role", "sort": true, "group": true, "filter": true,
          "values": [{"value": "system"}, {"value": "project"}], "renderings": ["text"], "placement": "column"},
-        {"id": "usable", "label": "usable", "type": "enum", "path": ".usable", "sort": true, "group": true,
-         "filter": true, "values": [{"value": "usable"}], "dim": true, "renderings": ["text"], "placement": "column"},
-        {"id": "active", "label": "active", "type": "enum", "path": ".active", "sort": true, "group": true,
-         "filter": true, "values": [{"value": "active"}], "dim": true, "renderings": ["text"], "placement": "column"},
-        {"id": "chosen", "label": "chosen", "type": "enum", "path": ".chosen", "sort": true, "group": true,
-         "filter": true, "values": [{"value": "chosen"}], "dim": true, "renderings": ["text"], "placement": "column"},
-        {"id": "fills", "label": "fills", "type": "enum", "path": ".fills", "sort": true, "group": true, "filter": true,
-         "values": [{"value": "fills"}], "dim": true, "renderings": ["text"], "placement": "column"}
+        {"id": "usable", "label": "usable here", "type": "enum", "path": ".usable", "sort": true, "group": true,
+         "filter": true, "values": [{"value": "usable", "glyph": "✅"}], "renderings": ["glyph"],
+         "placement": "column"},
+        {"id": "active", "label": "inside now", "type": "enum", "path": ".active", "sort": true, "group": true,
+         "filter": true, "values": [{"value": "active", "glyph": "⚡"}], "renderings": ["glyph"],
+         "placement": "column"},
+        {"id": "chosen", "label": "kit uses", "type": "enum", "path": ".chosen", "sort": true, "group": true,
+         "filter": true, "values": [{"value": "chosen", "glyph": "📌"}], "renderings": ["glyph"],
+         "placement": "column"},
+        {"id": "fills", "label": "adds the rest", "type": "enum", "path": ".fills", "sort": true, "group": true,
+         "filter": true, "values": [{"value": "fills", "glyph": "➕"}], "renderings": ["glyph"],
+         "placement": "column"}
       ],
       "presets": [
         {"name": "Default"},

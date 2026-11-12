@@ -57,6 +57,10 @@
 # toolchains:
 #
 #   🧰  toolchain: what installs the tools, the system's or the project's
+#   ✅  usable here: its tool is installed here, and for the project, its file is too
+#   ⚡  inside now: the run is already inside it
+#   📌  kit uses it: the one kit uses for its role
+#   ➕  adds the rest: brew, installing the Brewfile's tools the chosen toolchain does not pin
 #   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
 #
 # tools:
