@@ -212,56 +212,128 @@ func (m Model) runButton() string {
 // onRunButton says whether the screen cell x, y is on Run Selected Fixes, its count with it, as runButton draws it.
 func (m Model) onRunButton(x, y int) bool {
 	head := m.introHead()
-	k := y - paneTop
-	if k < 0 || k >= len(head) || m.runButton() == "" {
+	k := y - paneTop + m.offsets[m.step]
+	if y < paneTop || k >= len(head) || m.runButton() == "" {
 		return false
 	}
 	return onButton(ansi.Strip(head[k]), strings.TrimSpace(ansi.Strip(m.runButton())), x)
 }
 
-// placeChecks places the failed checks' table under the introduction's head, while it shows there, as tall as its
-// lines, or the pane under the head when they are more, so the page's words follow it where they fit.
+// placeChecks places the failed checks' table in the introduction, while it shows there, as tall as all its lines, so
+// it never scrolls itself: under the introduction's head, scrolled as the introduction is, which may put its top above
+// the pane. An introduction scrolled past its end, as when rows went, comes back to it.
 func (m *Model) placeChecks() {
-	if i := indexOf(m.tabs, introductionID); i < 0 || m.checksSheet == nil || m.tabs[i].sheet != m.checksSheet {
+	i := indexOf(m.tabs, introductionID)
+	if i < 0 || m.checksSheet == nil || m.tabs[i].sheet != m.checksSheet {
 		return
 	}
-	top, room := paneTop+len(m.introHead()), m.paneHeight()-len(m.introHead())
-	m.checksSheet.Place(top, max(1, room), m.width, m.height)
-	view := m.checksSheet.View()
-	need := len(view)
-	for need > 1 && view[need-1] == "" {
-		need--
-	}
-	if need < room {
-		m.checksSheet.Place(top, need, m.width, m.height)
+	s := m.checksSheet
+	top := paneTop + len(m.introHead()) - m.offsets[i]
+	s.Place(top, max(1, s.PaneHeight()), m.width, m.height)
+	frozen := table.FrozenLines(s)
+	header, _ := s.Header()
+	need := table.RowsTop(s) - top + frozen + table.Gap(frozen, header) + len(header) + len(table.ScrollLines(s))
+	s.Place(top, need, m.width, m.height)
+	if last := max(0, len(m.introLines())-m.paneHeight()); m.offsets[i] > last {
+		m.offsets[i] = last
+		s.Place(paneTop+len(m.introHead())-last, need, m.width, m.height)
 	}
 }
 
-// introPane gives the introduction's pane while its failed checks' table shows: its head, the table, and, where the
-// pane has room after it, a blank line, the folders not cloned, the folders the checks are on while they run again,
-// and the rest of the page.
-func (m Model) introPane() []string {
+// introLines gives every line of the introduction while its failed checks' table shows: its head, the table, all of
+// it, then a blank line, the folders not cloned, the folders the checks are on while they run again, and the rest of
+// the page.
+func (m Model) introLines() []string {
 	out := m.introHead()
-	for _, l := range m.sheet().View() {
+	for _, l := range m.checksSheet.View() {
 		out = append(out, pane.Clip(l, m.width-1))
 	}
-	tail := []string{""}
+	out = append(out, "")
 	if gone := uncloned(m.workspace); len(gone) > 0 {
-		tail = append(tail, lead+style.Off("not cloned: "+strings.Join(gone, ", ")), "")
+		out = append(out, lead+style.Off("not cloned: "+strings.Join(gone, ", ")), "")
 	}
 	if m.checking.Running() {
-		m.addChecking(func(_ int, text string) { tail = append(tail, text) })
-		tail = append(tail, "")
+		m.addChecking(func(_ int, text string) { out = append(out, pane.Clip(text, m.width-1)) })
+		out = append(out, "")
 	}
-	page := m.pageLines(m.step)
-	tail = append(tail, page[min(2, len(page)):]...)
-	for _, l := range tail {
-		if len(out) >= m.paneHeight() {
-			break
-		}
+	page := m.pageLines(indexOf(m.tabs, introductionID))
+	for _, l := range page[min(2, len(page)):] {
 		out = append(out, pane.Clip(l, m.width-1))
 	}
 	return out
+}
+
+// introPane gives the introduction's pane while its failed checks' table shows: its lines from where it is scrolled to,
+// as many as the pane holds.
+func (m Model) introPane() []string {
+	lines := m.introLines()
+	o := min(m.offsets[m.step], max(0, len(lines)-m.paneHeight()))
+	return lines[o:min(len(lines), o+m.paneHeight())]
+}
+
+// scrollIntro scrolls the introduction n lines, never past its ends: its first line at the pane's top, or its last
+// at the bottom.
+func (m *Model) scrollIntro(n int) {
+	last := max(0, len(m.introLines())-m.paneHeight())
+	m.offsets[m.step] = min(max(0, m.offsets[m.step]+n), last)
+	m.placeChecks()
+}
+
+// showFocus scrolls the introduction so the part of its table with the keyboard shows: its control line, or the lines
+// of the row under its cursor, its first where they are more than the pane holds.
+func (m *Model) showFocus() {
+	s := m.sheet()
+	head := len(m.introHead())
+	first, last := head, head
+	if s.InRows() {
+		_, places := table.Laid(s)
+		top, _ := s.Pane()
+		lines, at, found := s.Lines(), table.RowsTop(s)-top, false
+		for k, p := range places {
+			if p >= 0 && lines[p].Row == s.Table().Cursor {
+				if !found {
+					first, found = head+at+k, true
+				}
+				last = head + at + k
+			}
+		}
+	}
+	o, h := &m.offsets[m.step], m.paneHeight()
+	switch {
+	case first < *o:
+		*o = first
+	case last >= *o+h:
+		*o = min(first, last-h+1)
+	}
+	m.placeChecks()
+}
+
+// introScrollKey takes a key that scrolls the introduction while its table's rows have the keyboard, and says whether
+// it took it: a page up or down, home and end to its ends, and down on the table's last row, on into the page's words.
+// The cursor stays where it is, until a key moves it and the introduction follows it again.
+func (m *Model) introScrollKey(key string) bool {
+	s := m.sheet()
+	if !m.inPane || !s.InRows() || s.Layered() {
+		return false
+	}
+	switch h := m.paneHeight(); key {
+	case "pgup":
+		m.scrollIntro(-max(1, h-1))
+	case "pgdown":
+		m.scrollIntro(max(1, h-1))
+	case "home":
+		m.scrollIntro(-len(m.introLines()))
+	case "end":
+		m.scrollIntro(len(m.introLines()))
+	case "down":
+		if s.Table().Cursor < len(s.Rows())-1 {
+			return false
+		}
+		m.scrollIntro(1)
+	default:
+		return false
+	}
+	return true
 }
 
 // checkUnder gives the index of the check whose row is under the table's cursor while its rows have the keyboard, or

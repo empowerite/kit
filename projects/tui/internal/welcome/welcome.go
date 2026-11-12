@@ -349,14 +349,26 @@ func (m Model) read() tea.Cmd {
 	}
 }
 
-// Update takes a message, and lays the failed checks' table out again for what it changed, as tall as its lines.
+// Update takes a message, and lays the failed checks' table out again for what it changed, as tall as its lines. On the
+// introduction scrolled with its table, a key that scrolls it is taken first, and after any other key the part of the
+// table with the keyboard shows.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	next, cmd := m.update(msg)
-	if w, ok := next.(Model); ok && w.checksSheet != nil {
-		w.placeChecks()
-		return w, cmd
+	k, key := msg.(tea.KeyPressMsg)
+	if key && m.introGridded() && !m.appMenu.Open && !m.books.Open && !m.recent.Open && !m.search().Focused &&
+		m.introScrollKey(k.String()) {
+		m.copied = ""
+		return m, nil
 	}
-	return next, cmd
+	next, cmd := m.update(msg)
+	w, ok := next.(Model)
+	if !ok || w.checksSheet == nil {
+		return next, cmd
+	}
+	w.placeChecks()
+	if key && w.introGridded() && w.inPane && w.sheet().Focused() {
+		w.showFocus()
+	}
+	return w, cmd
 }
 
 // update takes a message, as Update says.
@@ -805,6 +817,10 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 // sheetClick gives a click to the selected step's table, which then has the keyboard where it took it, and the notice
 // it puts up fades in its while.
 func (m Model) sheetClick(msg tea.MouseClickMsg) (tea.Model, tea.Cmd) {
+	if m.introGridded() && !m.sheet().Layered() && (msg.Y < paneTop || msg.Y >= paneTop+m.paneHeight()) {
+		// the introduction's table, scrolled, reaches past the pane, where a click is not its
+		return m, nil
+	}
 	before := m.sheet().Notice()
 	if m.sheet().Click(msg) {
 		m.inPane = m.sheet().Focused()
@@ -1024,8 +1040,9 @@ const ends = 1 << 30
 // wheel is the lines a turn of the mouse wheel scrolls the pane.
 const wheel = 3
 
-// wheeled scrolls what a turn of the mouse wheel is over, never past its ends: the step's table, as table.Sheet's Wheel
-// takes it, or the pane's lines, a page's or a step's checks. The keyboard stays where it is, and so does the cursor,
+// wheeled scrolls what a turn of the mouse wheel is over, never past its ends: the introduction with its failed checks'
+// table, as one page; another step's table, as table.Sheet's Wheel takes it; or the pane's lines, a page's or a step's
+// checks. The keyboard stays where it is, and so does the cursor,
 // until a key moves it and the pane follows it again. A turn off the pane, or while a menu is open, scrolls nothing.
 func (m *Model) wheeled(w tea.MouseWheelMsg) {
 	d := 0
@@ -1038,11 +1055,14 @@ func (m *Model) wheeled(w tea.MouseWheelMsg) {
 	if d == 0 || m.appMenu.Open || m.books.Open || m.recent.Open || w.Y < paneTop || w.Y >= paneTop+m.paneHeight() {
 		return
 	}
-	if m.gridded() {
+	switch {
+	case m.introGridded():
+		m.scrollIntro(d)
+	case m.gridded():
 		m.sheet().Wheel(w)
-		return
+	default:
+		m.scroll(d)
 	}
-	m.scroll(d)
 }
 
 // scroll moves a page's pane n lines, never past its ends.
