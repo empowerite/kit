@@ -1,5 +1,6 @@
 // In a clone kit does not trust yet, kittui asks before it reads anything there: Trust goes on to the screen asked
-// for, Not now ends with kit's line and 1, ctrl-c with 130; a kit that cannot say is kit's refusal.
+// for, Not now to the palette, which reads what an untrusted clone allows, ctrl-c ends with 130; a kit that cannot say
+// is kittui's line.
 package main
 
 import (
@@ -12,6 +13,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/empowerite/kit/projects/tui/internal/app"
+	"github.com/empowerite/kit/projects/tui/internal/screens"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 	"github.com/empowerite/kit/projects/tui/internal/trust"
 )
@@ -47,16 +50,24 @@ func TestTrustGoesOnToTheScreenAskedFor(t *testing.T) {
 	}
 }
 
-func TestNotNowEndsWithKitsLine(t *testing.T) {
-	record, shown := overUntrusted(t, testkit.Press("esc"))
-	var stderr bytes.Buffer
-	code := run([]string{"flow"}, &stderr)
-	if code != 1 || !strings.HasPrefix(stderr.String(), "❌ kit runs nothing in /the/clone until you trust it") ||
-		len(*shown) != 1 {
-		t.Errorf("exit %d, stderr %q, %d screens", code, stderr.String(), len(*shown))
-	}
-	if _, err := os.Stat(record); err == nil {
-		t.Error("kit trust ran")
+// Not now opens what an untrusted clone allows, the palette, whatever screen was asked for, and runs no kit trust.
+func TestNotNowOpensTheHelpPalette(t *testing.T) {
+	for _, args := range [][]string{nil, {"flow"}, {"--", "commit"}} {
+		record, shown := overUntrusted(t, testkit.Press("esc"))
+		var stderr bytes.Buffer
+		code := run(args, &stderr)
+		if code != 1 || stderr.String() != "❌ kittui unreleased: past the dialog\n" || len(*shown) != 2 {
+			t.Errorf("%q: exit %d, stderr %q, %d screens", args, code, stderr.String(), len(*shown))
+			continue
+		}
+		if m, ok := (*shown)[1].(screens.Model); !ok || m.Shown() == nil {
+			t.Errorf("%q: after Not now, %T", args, (*shown)[1])
+		} else if _, ok := m.Shown().(app.Model); !ok {
+			t.Errorf("%q: after Not now, %T, not the palette", args, m.Shown())
+		}
+		if _, err := os.Stat(record); err == nil {
+			t.Errorf("%q: kit trust ran", args)
+		}
 	}
 }
 
@@ -77,7 +88,7 @@ func TestTheDialogsProgramAndAKitThatCannotSay(t *testing.T) {
 	if code := run(nil, &stderr); code != 1 || stderr.String() != "❌ kittui unreleased: no tty\n" {
 		t.Errorf("exit %d, stderr %q", code, stderr.String())
 	}
-	_, shown := overUntrusted(t, testkit.Press("esc"))
+	_, shown := overUntrusted(t, testkit.Press("t"))
 	t.Setenv("FAKE_TRUST_TRUSTED", "1")
 	stderr.Reset()
 	if code := run(nil, &stderr); code != 1 || len(*shown) != 1 {

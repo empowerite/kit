@@ -55,8 +55,13 @@ func run(args []string, stderr io.Writer) int {
 		return 2
 	}
 	r := kit.New()
-	if code, on := asked(r, stderr); !on {
+	code, on, untrusted := asked(r, stderr)
+	if !on {
 		return code
+	}
+	if untrusted {
+		// what a clone kit does not trust allows: the palette, which reads kit help and kit syntax alone
+		verb, words = "help", nil
 	}
 	if appVerb(verb) || verb == "welcome" {
 		r.Group, words = workspaceOf(words)
@@ -83,29 +88,26 @@ func run(args []string, stderr io.Writer) int {
 }
 
 // asked asks the person to trust the clone kittui runs in, where kit does not trust it yet, as it asks now, before
-// kittui reads anything there: it goes on where kit trusts the clone, as it did or after Trust; and it ends otherwise,
-// with 130 on ctrl-c, and with 1 and kit's line on Not now, which leaves kit on what an untrusted clone allows, kit
-// help, kit version, and kit trust. A kit that cannot answer is kit's refusal, or kittui's own.
-func asked(r kit.Runner, stderr io.Writer) (int, bool) {
+// kittui reads anything there. It goes on where kit trusts the clone, as it did or after Trust; it goes on untrusted
+// after Not now, for kittui to open on what an untrusted clone allows, the palette of kit help; and it ends with 130 on
+// ctrl-c. A kit that cannot answer is kit's refusal, or kittui's own, and ends it too.
+func asked(r kit.Runner, stderr io.Writer) (code int, on, untrusted bool) {
 	name, trusted, err := r.Trust()
 	if err != nil {
-		return refuse(err, stderr), false
+		return refuse(err, stderr), false, false
 	}
 	if trusted {
-		return 0, true
+		return 0, true, false
 	}
 	final, err := runModel(trust.Open(r, name))
 	if err != nil {
-		return failed(err, stderr), false
+		return failed(err, stderr), false, false
 	}
-	switch m := final.(trust.Model); {
-	case m.Interrupted():
-		return 130, false
-	case !m.Trusted():
-		fmt.Fprintln(stderr, "❌ "+trust.Untrusted(name))
-		return 1, false
+	m := final.(trust.Model)
+	if m.Interrupted() {
+		return 130, false, false
 	}
-	return 0, true
+	return 0, true, !m.Trusted()
 }
 
 // open makes the screen kittui opens on: for flow, Flow, on the stage its words name; for an app verb, as workspace or

@@ -172,12 +172,3 @@ func TestARefusalOfTrustStaysOnTheDialog(t *testing.T) {
 		t.Errorf("kit's refusal:\n%s", shown(m))
 	}
 }
-
-// Not now leaves kittui with kit's own line, its remedy run from where kittui runs.
-func TestUntrustedIsKitsLine(t *testing.T) {
-	got := Untrusted("/the/clone")
-	if !strings.HasPrefix(got, "kit runs nothing in /the/clone until you trust it; see what it asks kit to run, and "+
-		"trust it: ") || !strings.HasSuffix(got, "kit trust") {
-		t.Errorf("%q", got)
-	}
-}

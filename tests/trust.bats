@@ -47,7 +47,7 @@ answering() {
   fi
 }
 
-@test "in a clone you have not trusted, every verb but help, version, and trust is refused, by the loader and by the verb" {
+@test "in a clone you have not trusted, every verb but help, version, trust, and syntax is refused, by the loader and by the verb" {
   run "${kit}" check
   [ "$status" -eq 1 ]
   [[ "$output" == *"kit runs nothing in $(pwd -P) until you trust it; see what it asks kit to run, and trust it: kit trust"* ]]
@@ -424,6 +424,38 @@ answering() {
   [[ "$output" == *"kittui native-native -- commit"* ]]
   [ ! -s "${trusted}" ]
   [ ! -e "${BATS_TEST_TMPDIR}/ran" ]
+}
+
+@test "kit syntax runs in a clone you have not trusted, on the installed kit, reading its verbs alone, and asks nothing" {
+  own-kit
+  printf '#!/bin/sh\n: > "%s/ran"\n' "${BATS_TEST_TMPDIR}" > kit/bin/kit-clonefake
+  chmod +x kit/bin/kit-clonefake
+  printf 'version: unreleased\nbash_path:\n  - kit:modules/bash/\n  - lib/bash/\n' > kit.yml
+  mkdir -p lib/bash
+  printf ': > "%s/sourced"\n' "${BATS_TEST_TMPDIR}" > lib/bash/syntax.sh
+  run "${kit}" syntax --list </dev/null
+  [ "$status" -eq 0 ]
+  [[ "$output" == *$'\ntrust\t'* ]]
+  [[ "$output" != *clonefake* ]]
+  run "${kit}" syntax version </dev/null
+  [ "$status" -eq 0 ]
+  [ "$(jq -r .verb <<<"$output")" = version ]
+  run "${kit_checkout}/bin/kit-syntax" version
+  [ "$status" -eq 0 ]
+  # what runs what a verb asks to answer refuses, as every other verb does
+  for form in --choices=--rule --extend --match
+  do
+    run "${kit}" syntax new "${form}" </dev/null
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"kit runs nothing in $(pwd -P) until you trust it"* ]]
+  done
+  [ ! -e "${BATS_TEST_TMPDIR}/ran" ]
+  [ ! -e "${BATS_TEST_TMPDIR}/sourced" ]
+  [ ! -s "${trusted}" ]
+  # in a clone you trust, it answers what a verb asks, as before
+  "${kit}" trust --yes
+  run "${kit}" syntax version --match
+  [ "$status" -eq 0 ]
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

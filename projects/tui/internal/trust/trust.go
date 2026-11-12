@@ -1,7 +1,8 @@
 // Package trust is the dialog kittui opens in a clone kit does not trust yet, before it reads anything there, as an
 // editor asks before it trusts a folder: it names the clone, says what trusting it lets kit do, from what kit trust
 // --asks prints, and offers Trust, which runs kit trust --yes on the clone, and Not now, which leaves it untrusted, so
-// kit runs only kit help, kit version, and kit trust there. A plain click takes either button, as does the keyboard.
+// kittui opens on what kit runs there, the palette of kit help. A plain click takes either button, as does the
+// keyboard.
 package trust
 
 import (
@@ -10,7 +11,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/empowerite/kit/projects/tui/internal/fix"
 	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 )
@@ -58,13 +58,6 @@ func (m Model) Trusted() bool { return m.trusted }
 
 // Interrupted says whether ctrl-c ended the dialog.
 func (m Model) Interrupted() bool { return m.interrupted }
-
-// Untrusted gives the line kittui leaves with when the person chose Not now, in the words kit refuses with, and its
-// remedy run from where kittui runs.
-func Untrusted(name string) string {
-	return "kit runs nothing in " + name + " until you trust it; see what it asks kit to run, and trust it: " +
-		fix.Here("kit trust")
-}
 
 // Init starts nothing: the dialog has read what it shows.
 func (m Model) Init() tea.Cmd { return nil }

@@ -4,7 +4,8 @@
 # trust --check prints /the/clone and exits 1, as for a clone kit does not trust, or 0 when FAKE_TRUST_TRUSTED is set.
 # trust --asks prints what the clone asks, two lines, nothing when FAKE_TRUST_ASKS=none, and refuses with exit 2 when
 # FAKE_TRUST_ASKS=refuse. trust --yes <path> writes its words to the file FAKE_TRUST_RECORD names, when it is set, and
-# refuses with exit 1 when FAKE_TRUST_REFUSE is set. Any other call refuses with exit 2.
+# refuses with exit 1 when FAKE_TRUST_REFUSE is set. Any other call goes to the kit package's fake, whose syntax and
+# help the palette reads, as kittui opens it after Not now.
 
 set -o errexit -o nounset -o pipefail
 
@@ -34,8 +35,7 @@ case "${1:-} ${2:-}" in
     [[ -z "${FAKE_TRUST_RECORD:-}" ]] || printf '%s\n' "$*" >> "${FAKE_TRUST_RECORD}"
     ;;
   (*)
-    echo "❌ no kit verb '${1:-}' in the trust fake" >&2
-    exit 2
+    exec "$(dirname "$0")/../../kit/testdata/fake-kit" "$@"
 esac
 
 # ----------------------------------------------------------------------------------------------------------------------

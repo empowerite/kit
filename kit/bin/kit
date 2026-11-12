@@ -25,11 +25,11 @@
 # kit runs nothing in a clone until you trust it, as kit trust records it in kit/trusted under XDG_CONFIG_HOME, else
 # ~/.config: a clone, with every worktree of it, while it asks kit to run what it asked when you trusted it, by the
 # digest of that, or a folder, with every clone under it, whatever they ask. In a clone you have not trusted, or one
-# that asks something new, the loader runs kit help, kit version, and kit trust alone, on this release, whatever the
-# clone names, and on a terminal kit tui, which bare kit runs, whose kittui asks you to trust the clone before it
-# reads anything there. Any other verb, on a terminal, runs this release's kit trust first, which shows what the
-# clone asks kit to run and asks you; after a yes, the call runs as it was typed. Without a terminal, or after a no, it is
-# refused. kit trust runs on this release in a clone you trust too.
+# that asks something new, the loader runs kit help, kit version, kit trust, and kit syntax alone, on this release,
+# whatever the clone names, and on a terminal kit tui, which bare kit runs, whose kittui asks you to trust the clone
+# before it reads anything there. Any other verb, on a terminal, runs this release's kit trust first, which shows what
+# the clone asks kit to run and asks you; after a yes, the call runs as it was typed. Without a terminal, or after a no,
+# it is refused. kit trust runs on this release in a clone you trust too.
 #
 # The kit options:
 #
@@ -209,8 +209,8 @@ trust_digest() {
       [ ! -f "${trust_digest_file}" ] || set -- "$@" "${trust_digest_file}"
     done
     # a directory that is not there, as .kit/styles/ in a clone with no style, lists nothing, and find says so
-    trust_digest_found=$(find .kit/.gitignore .kit/rules .kit/styles -maxdepth 1 \( -name '*.md' -o -name .gitignore \) \
-      -type f -perm -0200 2>/dev/null || :)
+    trust_digest_found=$(find .kit/.gitignore .kit/rules .kit/styles -maxdepth 1 \
+      \( -name '*.md' -o -name .gitignore \) -type f -perm -0200 2>/dev/null || :)
     trust_digest_writable="
 ${trust_digest_found}
 "
@@ -547,7 +547,7 @@ then
     remedy="see what it asks kit to run, and trust it: kit trust"
   fi
   case ${1:-tui} in
-    (help | version | trust) untrusted=yes ;;
+    (help | version | trust | syntax) untrusted=yes ;;
   esac
   # kit tui, as bare kit runs it, on a terminal, where kittui asks to trust the clone before it reads anything there
   if [ "${1:-tui}" = tui ] && [ -t 0 ] && [ -t 1 ] && [ -t 2 ]

@@ -27,6 +27,10 @@
 # template's holes, and {} before it knows them. --match answers with status 0, 1 with missing, or 2 with refusal,
 # and the words sorted into literals, operands, options, and values, for a form to fill; the words follow a --.
 #
+# In a clone you have not trusted, kit syntax reads this release's verbs' headers alone, as kit help does, so kittui's
+# palette draws there; --choices, --extend, and --match, which run what a verb asks to answer, refuse there as every
+# other verb does.
+#
 # Arguments:
 #   --check                prints no JSON; names each fault in the header, and fails
 #   --list                 prints no JSON; one line per verb: verb, purpose, group, tab-separated
@@ -46,9 +50,22 @@
 set -o errexit -o nounset -o pipefail
 # shellcheck source=modules/bash/1st.sh
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
-kit:enter
+untrusted=false
+if kit:trusted-at .
+then
+  kit:enter
+else
+  kit:enter --any-clone
+  untrusted=true
+fi
 use help syntax
 guard:arguments syntax "$@" || exit $?
+# shellcheck disable=SC2154  # syntax_options is set by guard:arguments
+if [[ "${untrusted}" == true \
+  && -n "${syntax_options[--choices]+x}${syntax_options[--extend]+x}${syntax_options[--match]+x}" ]]
+then
+  kit:trust-here || exit 1
+fi
 
 guard:require tool:jq
 
