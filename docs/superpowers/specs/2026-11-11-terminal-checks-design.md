@@ -85,8 +85,8 @@ not.
   preferences, and `plutil -extract <keypath> json -o - -` takes one key of it as JSON. Converting a whole export to
   JSON fails on its date and data values, so a reader extracts the keys it needs.
 - kittui owns the terminal while it is up, and runs `kit welcome --checks --json` as a child. A child that wrote a
-  probe to the terminal and read its answer would race kittui's own reader. So kittui probes, and passes what it
-  learned to the child; bash probes only when it owns the terminal itself (below).
+  probe to the terminal and read its answer would race kittui's own reader. So kit probes before it hands the
+  terminal to kittui, and the answers reach every child through the environment (below).
 - A terminal check is a machine check, judged once, in `welcome:plan-machine`; `welcome:machine` says so for
   `terminal-*`, and `welcome:step` puts it in setup.
 - `kit welcome --checks --json` keeps its shape: a terminal check is one more object with the same fields.
@@ -158,12 +158,15 @@ ssh and inside a multiplexer.
 | `grapheme-width` | DECRQM 2027: does it measure by grapheme cluster | widths |
 | `emoji-width` | prints 📚, then `CSI 6n`: is the cursor two columns on | widths |
 | `ambiguous-width` | prints ↑, then `CSI 6n`: is the cursor one column on | widths |
-| `color` | `COLORTERM` and the color profile kittui's library settles on | color |
+| `color` | `COLORTERM` and `TERM`, as kittui's library reads them | color |
 
-When kittui is up, it runs the probes (its library sends the first two already) and passes the answers to
-`kit welcome --checks` in `KIT_TERMINAL_PROBES`, a JSON object. When kit welcome runs as text with stdout a terminal,
-bash runs the probes itself on `/dev/tty`, in raw mode, with a timeout of half a second for each answer; a terminal
-that never answers fails no probe, and its probe checks say it did not answer. With neither, no probe check runs.
+Every verb that hands the terminal to kittui first runs the probes, in bash, on `/dev/tty`, and exports the answers
+in `KIT_TERMINAL_PROBES`, a JSON object, so kittui and each `kit welcome --checks` it runs as a child read them from the
+environment and never touch the terminal. When kit welcome runs as text with stdout a terminal, it probes the same way.
+The probes go out in one write, with a request for the terminal's primary attributes (`CSI c`) last: every terminal
+answers that one, so its answer ends the exchange, and half a second without it means the terminal did not answer. A
+terminal that never answers fails no probe, and its probe checks say it did not answer. With neither the variable nor
+a terminal, no probe check runs.
 
 A probe fails on these answers, and on no others (my call):
 
@@ -171,9 +174,8 @@ A probe fails on these answers, and on no others (my call):
 - `emoji-width`: the cursor is not two columns on. `grapheme-width` never fails alone: many terminals answer no to
   mode 2027 and still draw 📚 in two cells, so its answer only explains an `emoji-width` that failed.
 - `ambiguous-width`: the cursor is not one column on.
-- `color`: fewer than 256 colors. kittui reports the profile its library settled on; bash, as text, reads the same
-  variables the library does: `COLORTERM` of `truecolor` or `24bit` is 24-bit, a `TERM` ending in `256color` is 256,
-  and anything else is fewer.
+- `color`: fewer than 256 colors. kit reads the variables kittui's library reads: `COLORTERM` of `truecolor` or
+  `24bit` is 24-bit, a `TERM` ending in `256color` is 256, and anything else is fewer.
 
 Settings explain, and probes measure, so they never both report one cause (my call):
 
@@ -221,18 +223,19 @@ Settings explain, and probes measure, so they never both report one cause (my ca
 ```
 
 `from` is `settings` or `probes`. `bad` is a jq expression over the reader's object, or over the probes' object; true
-fails the check. `{profile}` and other names in braces come from the reader's object. Each check's `more` is
-`docs/terminals.md#<terminal>-<finding>`.
+fails the check. `{profile}` and other names in braces come from the reader's object. Each check's `more` is the
+terminal's section of the docs page, by its full URL, as welcome links kit's other docs:
+`https://github.com/empowerite/kit/blob/main/docs/terminals.md#iterm2`.
 
 ### Keeping a finding
 
-`kit welcome --keep <check>` adds the check's id to `terminal: kept:` in `${KIT_HOME:-$HOME}/.kit/settings.yml`, the
+`kit welcome --keep=<check>` adds the check's id to `terminal: kept:` in `${KIT_HOME:-$HOME}/.kit/settings.yml`, the
 person's own settings file, where `kit toolchains` records the system toolchain. Where the terminal has profiles, the
 keep is for the profile it was judged in, written `terminal-iterm-triggers@Work`, so keeping triggers in one profile
 never silences another (my call). A kept finding is judged as before;
 where it would fail, it holds instead, its line opens with "kept:", and its `more` names
-`kit welcome --unkeep <check>`. In kittui, a failed terminal check offers keep beside now and later; now shows the fix,
-since kit never runs it. `--keep` refuses a check that is not a terminal check, with exit 2.
+`kit welcome --unkeep=<check>`. In kittui, a failed terminal check offers later and keep; it offers no now, since kit
+never runs its fix, which stands under it. `--keep=` refuses a check that is not a terminal check, with exit 2.
 
 ### What welcome shows
 
