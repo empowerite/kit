@@ -81,6 +81,19 @@ func TestAFieldReadsItsPath(t *testing.T) {
 	if got := (Field{ID: "id", Path: ".z"}).Read(rec); got.Else != "" {
 		t.Errorf("null without a null of its own: %+v", got)
 	}
+	// a field that says what empty draws draws it where every value the record holds is an empty string, and holds
+	// no value there; a value beside it, or a field that says none, keeps the empty string
+	blank := json.RawMessage(`{"e": "", "es": ["", ""], "mixed": ["", "x"], "s": "x", "z": null}`)
+	for path, want := range map[string]string{".e": "off", ".es": "off", ".mixed": "", ".s": "", ".z": "",
+		".nope": "", ".e, .z": "off"} {
+		got := (Field{ID: "id", Path: path, Empty: "off"}).Read(blank)
+		if got.Else != want || want != "" && got.Raw != nil {
+			t.Errorf("%q with empty off: %+v", path, got)
+		}
+	}
+	if got := (Field{ID: "id", Path: ".e"}).Read(blank); got.Else != "" || !slices.Equal(got.Raw, []string{""}) {
+		t.Errorf("empty without an empty of its own: %+v", got)
+	}
 	for _, c := range []struct {
 		schema Schema
 		rec    string

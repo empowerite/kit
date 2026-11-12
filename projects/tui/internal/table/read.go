@@ -180,7 +180,8 @@ func (f Field) Read(record json.RawMessage) Value { return f.ReadFrom(Decoded(re
 // several after commas, each .a.b, a [] after a key allowed and ignored. An array gives the value an element each,
 // and a path through one maps over it; a string is itself, a number its digits, true the field's id, and false, null,
 // or an object no value. A field that says what null draws, as its Null, draws it for a record that holds null at a
-// path, and no value at any.
+// path, and no value at any; one that says what empty draws, as its Empty, draws it for a record whose every value
+// there is an empty string, and gives no value.
 func (f Field) ReadFrom(v any) Value {
 	var out Value
 	null := false
@@ -202,6 +203,9 @@ func (f Field) ReadFrom(v any) Value {
 	}
 	if null && len(out.Raw) == 0 {
 		out.Else = f.Null
+	}
+	if f.Empty != "" && len(out.Raw) > 0 && !slices.ContainsFunc(out.Raw, func(s string) bool { return s != "" }) {
+		out.Raw, out.Else = nil, f.Empty
 	}
 	return out
 }

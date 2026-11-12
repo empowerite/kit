@@ -57,7 +57,8 @@ var Takes = []string{"owner", "no-fetch", "fresh", "cached", "workspace"}
 // gives way to the one that wraps: none, the column gives up the cells past its share as soon as the wrapping one is
 // short; WidthWhole, it keeps its widest value while the wrapping one keeps a few cells, and gives way only after it,
 // as a glossary's term does. Null is what a row whose value at the path is null draws, dim, where null means more
-// than nothing, as an environment's branches, any. Placement is where a preset that names none puts it: a column, a
+// than nothing, as an environment's branches, any, or a policy rule's branch merged across them all, all; and Empty
+// what a row whose every value there is an empty string draws, dim, as a rule's pattern that is off. Placement is where a preset that names none puts it: a column, a
 // group, or hidden; and Depth, for a group, how deep, from 1, the outermost, as a stage whose rows belong to a
 // repository groups them by source, organization, and repository in each of its own views. Order
 // says how its groups stand: none, sorted; OrderGiven, in the order the data gives them, an enum's known values first,
@@ -82,6 +83,7 @@ type Field struct {
 	Wrap       bool        `json:"wrap"`
 	Width      string      `json:"width"`
 	Null       string      `json:"null"`
+	Empty      string      `json:"empty"`
 	Placement  string      `json:"placement"`
 	Depth      int         `json:"depth"`
 	Order      string      `json:"order"`
