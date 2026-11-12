@@ -286,7 +286,7 @@ func TestNRunsTheFixWithTheTerminalThenReadsTheChecksAgain(t *testing.T) {
 			t.Errorf("%v:\n%s", key, view(m))
 		}
 	}
-	want := []string{"welcome --checks --json", "welcome --fix jq", "welcome --checks --json"}
+	want := []string{"welcome --checks --json --progress", "welcome --fix jq", "welcome --checks --json --progress"}
 	if got := calls(t, record); !slices.Equal(got, append(want, want...)) {
 		t.Errorf("the calls: %q", got)
 	}

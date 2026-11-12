@@ -3,7 +3,7 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # kit welcome [--text]
 #
-# kit welcome --checks [--json | --jq] [--folder=<path>]
+# kit welcome --checks [--json | --jq] [--folder=<path>] [--progress]
 #
 # kit welcome --fix <check> [--folder=<path>]
 #
@@ -30,6 +30,9 @@
 #   --fix <check>     runs one check's fix, then checks again
 #   --folder=<path>   the folder whose working tree holds <path>: --checks prints its checks alone, and --fix runs a
 #                     folder's check there; with none, --fix runs it in the repository here
+#   --progress        with --checks, says on stderr what is being checked as it goes: ⏳ checking <check>, then
+#                     " in <folder>" for a folder's, as each check starts, and ⏳ checked, then " <folder>" for a
+#                     folder, as the machine's checks or a folder's end; kittui shows them while the checks run
 #   <check>           a check's id, as --checks --json names it: tool-yq, toolchain-project
 #
 # A check is the machine's, judged once, or a folder's, judged in each folder of the workspace. The workspace is the
@@ -112,6 +115,8 @@ welcome:find-folders() {
 if [[ -n "${syntax_options[--checks]+x}" ]]
 then
   welcome:find-folders || exit $?
+  # shellcheck disable=SC2034  # read by modules/bash/welcome.sh
+  [[ -z "${syntax_options[--progress]+x}" ]] || welcome_progress=true
   readarray -t checks < <(welcome:checks ${folder:+--folders})
   if [[ -n "${syntax_options[--json]+x}" ]]
   then

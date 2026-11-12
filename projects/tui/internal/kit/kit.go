@@ -471,9 +471,14 @@ func (c *Check) UnmarshalJSON(b []byte) error {
 
 // WelcomeChecks gives kit welcome's checks, in the order kit ran them: the machine's, then each folder's of the
 // workspace, as over names it, every member's desk and worktrees over a group. They have checksLimit at most, and end
-// when ctx does, as the screen that asked for them ends.
-func (r Runner) WelcomeChecks(ctx context.Context) ([]Check, error) {
-	out, err := r.within(ctx, checksLimit, append(os.Environ(), "NO_COLOR=1"), r.over("welcome", "--checks", "--json")...)
+// when ctx does, as the screen that asked for them ends. told, unless nil, hears what kit says as they run, each check
+// that starts and each folder whose checks end, from kit welcome --checks --json --progress.
+func (r Runner) WelcomeChecks(ctx context.Context, told func(Progress)) ([]Check, error) {
+	args := r.over("welcome", "--checks", "--json")
+	if told != nil {
+		args = append(args, "--progress")
+	}
+	out, err := r.telling(ctx, checksLimit, append(os.Environ(), "NO_COLOR=1"), told, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -482,6 +487,56 @@ func (r Runner) WelcomeChecks(ctx context.Context) ([]Check, error) {
 		return nil, fmt.Errorf("kit welcome --checks --json: %v", err)
 	}
 	return checks, nil
+}
+
+// Progress is what kit welcome --checks --progress says as it goes: the check that starts, in Folder, or on the machine
+// where Folder is empty; or, with Check empty, that the checks of Folder, or the machine's, end.
+type Progress struct {
+	Check  string
+	Folder string
+}
+
+// progressOf reads one line kit welcome --checks --progress says on stderr: ⏳ checking <id>, with " in <folder>" for
+// a folder's, or ⏳ checked, with " <folder>" for a folder. Any other line is not progress.
+func progressOf(line string) (Progress, bool) {
+	if rest, ok := strings.CutPrefix(line, "⏳ checking "); ok {
+		id, folder, _ := strings.Cut(rest, " in ")
+		return Progress{Check: id, Folder: folder}, id != ""
+	}
+	if rest, ok := strings.CutPrefix(line, "⏳ checked"); ok && (rest == "" || strings.HasPrefix(rest, " ")) {
+		return Progress{Folder: strings.TrimPrefix(rest, " ")}, true
+	}
+	return Progress{}, false
+}
+
+// toldWriter takes a command's stderr: each line that says progress goes to told as it comes, and every other line to
+// rest, as kit's refusal; with no told, every line goes to rest.
+type toldWriter struct {
+	told    func(Progress)
+	rest    bytes.Buffer
+	partial []byte
+}
+
+// Write takes what the command wrote, a line at a time; a line not yet ended waits for the rest.
+func (w *toldWriter) Write(b []byte) (int, error) {
+	w.partial = append(w.partial, b...)
+	for {
+		i := bytes.IndexByte(w.partial, '\n')
+		if i < 0 {
+			return len(b), nil
+		}
+		w.line(w.partial[:i+1])
+		w.partial = w.partial[i+1:]
+	}
+}
+
+// line sends one line to told when it says progress, and keeps it otherwise.
+func (w *toldWriter) line(l []byte) {
+	if p, ok := progressOf(strings.TrimRight(string(l), "\n")); ok && w.told != nil {
+		w.told(p)
+		return
+	}
+	w.rest.Write(l)
 }
 
 // WelcomeFix gives the command that runs a check's fix, kit welcome --fix <id>, where the command was typed, over the
@@ -604,11 +659,17 @@ var (
 // within runs kit in the environment env until ctx ends or the limit passes, whichever is first; past the limit, the
 // error says how long the call had, and when ctx ends first, the error is ctx's.
 func (r Runner) within(ctx context.Context, limit time.Duration, env []string, args ...string) ([]byte, error) {
+	return r.telling(ctx, limit, env, nil, args...)
+}
+
+// telling runs kit as within does, and tells told, unless nil, each line of progress kit says on stderr as it says it.
+func (r Runner) telling(ctx context.Context, limit time.Duration, env []string, told func(Progress),
+	args ...string) ([]byte, error) {
 	limited, cancel := context.WithTimeout(ctx, limit)
 	defer cancel()
 	cmd := grouped(limited, r.Kit, args...)
 	cmd.Env = env
-	out, err := r.output(cmd)
+	out, err := r.outputTold(cmd, told)
 	switch {
 	case err == nil:
 		return out, nil
@@ -621,14 +682,21 @@ func (r Runner) within(ctx context.Context, limit time.Duration, env []string, a
 }
 
 // output runs the command in Dir and gives its stdout, as run says.
-func (r Runner) output(cmd *exec.Cmd) ([]byte, error) {
+func (r Runner) output(cmd *exec.Cmd) ([]byte, error) { return r.outputTold(cmd, nil) }
+
+// outputTold runs the command as output does, and tells told, unless nil, each line of progress it says on stderr as it
+// says it; the rest of stderr is its refusal.
+func (r Runner) outputTold(cmd *exec.Cmd, told func(Progress)) ([]byte, error) {
 	cmd.Dir = r.Dir
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout, cmd.Stderr = &stdout, &stderr
-	if err := cmd.Run(); err != nil {
+	var stdout bytes.Buffer
+	stderr := &toldWriter{told: told}
+	cmd.Stdout, cmd.Stderr = &stdout, stderr
+	err := cmd.Run()
+	stderr.rest.Write(stderr.partial)
+	if err != nil {
 		var exit *exec.ExitError
 		if errors.As(err, &exit) {
-			return nil, &ExitError{Code: exit.ExitCode(), Stderr: stderr.String(), Stdout: stdout.Bytes()}
+			return nil, &ExitError{Code: exit.ExitCode(), Stderr: stderr.rest.String(), Stdout: stdout.Bytes()}
 		}
 		return nil, fmt.Errorf("%s: %w", r.Kit, err)
 	}

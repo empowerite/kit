@@ -271,7 +271,7 @@ func TestEveryCallFailsWhenKitCannotRunOrPrintsWhatIsNotItsJSON(t *testing.T) {
 		_, calls["Spec"] = r.Spec("commit")
 		_, _, calls["Extend"] = r.Extend("new", nil)
 		_, calls["Match"] = r.Match("commit", nil)
-		_, calls["WelcomeChecks"] = r.WelcomeChecks(context.Background())
+		_, calls["WelcomeChecks"] = r.WelcomeChecks(context.Background(), nil)
 		_, calls["Tutorials"] = r.Tutorials(context.Background(), nil)
 		if r.Kit == missing.Kit {
 			_, calls["List"] = r.List()
@@ -286,7 +286,7 @@ func TestEveryCallFailsWhenKitCannotRunOrPrintsWhatIsNotItsJSON(t *testing.T) {
 			}
 		}
 	}
-	if _, err := script(t, `echo '[{"id": "jq", "ok": "yes"}]'`).WelcomeChecks(context.Background()); err == nil ||
+	if _, err := script(t, `echo '[{"id": "jq", "ok": "yes"}]'`).WelcomeChecks(context.Background(), nil); err == nil ||
 		!strings.Contains(err.Error(), "kit welcome --checks --json") {
 		t.Errorf("a check with ok a string: %v", err)
 	}
@@ -319,13 +319,13 @@ func TestAKitThatHangsIsStoppedAtItsLimitOrWhenTheScreenEnds(t *testing.T) {
 		cancel()
 	}()
 	start = time.Now()
-	if _, err := fake(t, "").WelcomeChecks(ctx); !errors.Is(err, context.Canceled) || time.Since(start) > 3*time.Second {
+	if _, err := fake(t, "").WelcomeChecks(ctx, nil); !errors.Is(err, context.Canceled) || time.Since(start) > 3*time.Second {
 		t.Errorf("checks whose screen ended: %v after %s", err, time.Since(start))
 	}
 }
 
 func TestWelcomeChecksDecodesEachCheck(t *testing.T) {
-	checks, err := fake(t, "").WelcomeChecks(context.Background())
+	checks, err := fake(t, "").WelcomeChecks(context.Background(), nil)
 	if err != nil || len(checks) != 6 {
 		t.Fatalf("WelcomeChecks: %v, %+v", err, checks)
 	}
@@ -350,7 +350,7 @@ func TestWelcomeChecksReadEachFoldersCheck(t *testing.T) {
 	checks, err := script(t, `echo '[{"id": "tool-git", "ok": true, "folder": null, "repository": null, "desk": null,
 		"branch": null, "kit": null}, {"id": "kit-check", "ok": false, "folder": "/a/worktrees/t", "repository":
 		"github.com/o/a", "desk": false, "branch": "t", "kit": "0.1.0"}, {"id": "kit-check", "ok": true, "folder": "/a",
-		"repository": "github.com/o/a", "desk": true, "branch": "main", "kit": null}]'`).WelcomeChecks(context.Background())
+		"repository": "github.com/o/a", "desk": true, "branch": "main", "kit": null}]'`).WelcomeChecks(context.Background(), nil)
 	if err != nil || len(checks) != 3 {
 		t.Fatalf("WelcomeChecks: %v, %+v", err, checks)
 	}
@@ -608,5 +608,33 @@ exit 1`).MarksOf(ctx, "workspace")
 	quotas, err := script(t, `echo '[{"forge": "github", "limits": []}]'; echo '❌ o/b: no gh' >&2; exit 1`).Quota(ctx)
 	if err != nil || len(quotas) != 1 || quotas[0].Forge != "github" {
 		t.Errorf("Quota = %+v, %v", quotas, err)
+	}
+}
+
+// With told, the checks ask kit for its progress, and told hears each line of it as kit says it, a check that starts,
+// on the machine or in a folder, and a folder's end, while every other line of stderr stays kit's refusal.
+func TestWelcomeChecksTellWhatKitSaysAsTheyRun(t *testing.T) {
+	r := script(t, `[ "$4" = --progress ] || exit 3
+printf '⏳ checking tool-git\n⏳ checked\n⏳ checking kit-check in /a/b c\n' >&2
+printf '⏳ checked /a/b c\n' >&2
+echo '[{"id": "tool-git", "ok": true}]'`)
+	var heard []Progress
+	checks, err := r.WelcomeChecks(context.Background(), func(p Progress) { heard = append(heard, p) })
+	if err != nil || len(checks) != 1 {
+		t.Fatalf("WelcomeChecks: %v, %+v", err, checks)
+	}
+	want := []Progress{{Check: "tool-git"}, {}, {Check: "kit-check", Folder: "/a/b c"}, {Folder: "/a/b c"}}
+	if !reflect.DeepEqual(heard, want) {
+		t.Errorf("heard %+v", heard)
+	}
+	refused := script(t, `printf '⏳ checking tool-git\n❌ kit refuses\n⏳ checkedout\n' >&2; exit 2`)
+	_, err = refused.WelcomeChecks(context.Background(), func(Progress) {})
+	var exit *ExitError
+	if !errors.As(err, &exit) || exit.Stderr != "❌ kit refuses\n⏳ checkedout\n" {
+		t.Errorf("refused: %v", err)
+	}
+	// without told, kit is not asked for its progress
+	if _, err := script(t, `[ $# = 3 ] && echo '[]'`).WelcomeChecks(context.Background(), nil); err != nil {
+		t.Errorf("without told: %v", err)
 	}
 }

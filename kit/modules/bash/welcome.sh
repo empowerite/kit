@@ -76,6 +76,10 @@ declare -gA welcome_linter_rule=() welcome_host_forge=()
 # true for a desk and false for a worktree, and its absolute path. welcome:folders fills it.
 declare -ga welcome_folders=()
 
+# welcome_progress is true when kit welcome --checks --progress asked to say on stderr what is being checked as it goes;
+# welcome:progress says it.
+declare -g welcome_progress=false
+
 # welcome_where is what a check adds to say where it holds: {folder, repository, desk, branch, kit}, each null for a
 # machine check. welcome:folder-checks sets it for the folder it judges.
 declare -g welcome_where='{"folder":null,"repository":null,"desk":null,"branch":null,"kit":null}'
@@ -655,6 +659,17 @@ welcome:here() {
     {folder: $folder, repository: $repository, desk: $desk, branch: ($branch | some), kit: ($kit | some)}')
 }
 
+# welcome:progress checking|checked [<id>] [<folder>] says on stderr, where welcome_progress asks it to, that a check
+# starts, ⏳ checking <id>, with " in <folder>" for a folder's; or that the machine's checks or a folder's end, ⏳
+# checked, with " <folder>" for a folder. Each is one short write, so the folders judged at once never mix their lines.
+welcome:progress() {
+  [[ "${welcome_progress}" == true ]] || return 0
+  case "$1" in
+    (checking) printf '⏳ checking %s%s\n' "$2" "${3:+ in $3}" >&2 ;;
+    (checked) printf '⏳ checked%s\n' "${2:+ $2}" >&2 ;;
+  esac
+}
+
 # welcome:folder-checks <record> judges the checks of one folder, as welcome_folders holds it, in the folder, and
 # prints each as JSON, in order. It runs in a subshell of its own, so nothing it finds there reaches another folder.
 welcome:folder-checks() (
@@ -665,8 +680,10 @@ welcome:folder-checks() (
   welcome:plan-folder
   for id in "${welcome_folder_ids[@]}"
   do
+    welcome:progress checking "${id}" "${folder}"
     welcome:judge "${id}"
   done
+  welcome:progress checked "${folder}"
 )
 
 # welcome:brew-off-path succeeds when brew is installed at a Homebrew prefix but is not on PATH.
@@ -822,8 +839,10 @@ welcome:checks() {
     welcome:plan-machine
     for id in "${welcome_ids[@]}"
     do
+      welcome:progress checking "${id}"
       welcome:judge "${id}"
     done
+    welcome:progress checked
   else
     welcome:find system
   fi

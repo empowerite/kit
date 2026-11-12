@@ -32,6 +32,7 @@ import (
 	"os/exec"
 	"slices"
 	"strings"
+	"sync/atomic"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -130,6 +131,15 @@ type fixedMsg struct {
 	err     error
 }
 
+// toldMsg brings a line of kit's progress as the checks run, the check one folder, or the machine, starts, or the end
+// of its checks; or, with end, that the run is over. run is the run of the checks that said it, as the load numbers
+// them.
+type toldMsg struct {
+	run int64
+	p   kit.Progress
+	end bool
+}
+
 // note is what the screen says under a check after its fix ran and the check still fails: a warning, or kit's
 // refusal.
 type note struct {
@@ -152,9 +162,13 @@ type Model struct {
 	places    []string                                  // the check each step's cursor was on when it was left
 	checking  source.Load[[]kit.Check]                  // kit welcome --checks --json: loading until it first answers
 	checks    []kit.Check
-	refusal   string // kit's line, when the checks did not run
-	cursor    int    // the check under the cursor, an index into checks, in the selected step
-	choice    int    // now or later, on a row that offers them
+	told      chan toldMsg   // what kit says as the checks run, to the screen as it comes
+	run       *atomic.Int64  // the run of the checks the screen waits on, as the load numbers them
+	listening bool           // whether a listen is out, to bring what kit says next
+	running   []kit.Progress // the check each folder, and the machine, is on, in the order kit first named them
+	refusal   string         // kit's line, when the checks did not run
+	cursor    int            // the check under the cursor, an index into checks, in the selected step
+	choice    int            // now or later, on a row that offers them
 	deferred  map[string]bool
 	notes     map[string]note
 	offsets   []int // the first line of each step's pane
@@ -174,7 +188,7 @@ type Model struct {
 func Open(r kit.Runner, ws kit.Workspace) Model {
 	m := New(r, readRepo(r.Dir))
 	m.workspace, m.books.Workspace = ws, ws
-	m.checking = source.NewLoad("checks", checksOver(r, ws), nil)
+	m.checking = source.NewLoad("checks", m.telling(checksOver(r, ws)), nil)
 	m.recent = shell.Recent{Path: shell.RecentFile()}.Loaded()
 	m.presets = table.PresetsPath()
 	return m
@@ -182,15 +196,83 @@ func Open(r kit.Runner, ws kit.Workspace) Model {
 
 // New opens the screen on the first step, checking. Init runs the checks and reads the pages.
 func New(r kit.Runner, repo string) Model {
-	checks := func(ctx context.Context, _ bool) ([]kit.Check, error) { return r.WelcomeChecks(ctx) }
-	m := Model{runner: r, exec: tea.ExecProcess, checking: source.NewLoad("checks", checks, nil),
-		deferred: map[string]bool{},
-		notes:    map[string]note{}, width: 80, height: 24, tabs: slices.Clone(known),
+	m := Model{runner: r, exec: tea.ExecProcess, told: make(chan toldMsg, 64), run: &atomic.Int64{},
+		deferred: map[string]bool{}, notes: map[string]note{}, width: 80, height: 24, tabs: slices.Clone(known),
 		places: make([]string, len(known)), offsets: make([]int, len(known)), appMenu: shell.Menu{Here: shell.Welcome},
 		books: shell.BooksMenu{Fallback: repo}, searches: map[string]shell.Search{},
 		settings: shell.Settings{KeysBar: true, FoldShared: true}}
 	m.ctx, m.cancel = context.WithCancel(context.Background())
+	m.checking = source.NewLoad("checks", m.telling(checksOver(r, kit.Workspace{})), nil)
 	return m
+}
+
+// telling gives the read of the checks that hands what kit says as they run to the screen, each line marked with the
+// run it belongs to, then, as the run ends, that it is over. A line that finds the screen behind is dropped, as the
+// next one says more; the end waits for the screen, unless it has ended.
+func (m Model) telling(read func(context.Context, func(kit.Progress)) ([]kit.Check, error)) func(context.Context,
+	bool) ([]kit.Check, error) {
+	told, run, done := m.told, m.run, m.ctx.Done()
+	return func(ctx context.Context, _ bool) ([]kit.Check, error) {
+		n := run.Load()
+		defer func() {
+			select {
+			case told <- toldMsg{run: n, end: true}:
+			case <-done:
+			}
+		}()
+		return read(ctx, func(p kit.Progress) {
+			select {
+			case told <- toldMsg{run: n, p: p}:
+			default:
+			}
+		})
+	}
+}
+
+// listen gives what kit says next as the checks run; nothing once the screen ends.
+func (m *Model) listen() tea.Cmd {
+	m.listening = true
+	told, ctx := m.told, m.ctx
+	return func() tea.Msg {
+		select {
+		case msg := <-told:
+			return msg
+		case <-ctx.Done():
+			return nil
+		}
+	}
+}
+
+// heard keeps what kit said as the checks run, and listens for more while they run: a line of the run the screen
+// waits on is kept, and its end stops the listening; an earlier run's is dropped.
+func (m *Model) heard(msg toldMsg) tea.Cmd {
+	m.listening = false
+	current := msg.run == int64(m.checking.Gen())
+	switch {
+	case current && msg.end:
+		return nil
+	case current:
+		m.tellOf(msg.p)
+	}
+	if !m.checking.Running() {
+		return nil
+	}
+	return m.listen()
+}
+
+// tellOf keeps a line of kit's progress: the check a folder, or the machine, now runs, in the place kit first named
+// it, or, with no check, the end of its checks.
+func (m *Model) tellOf(p kit.Progress) {
+	i := slices.IndexFunc(m.running, func(r kit.Progress) bool { return r.Folder == p.Folder })
+	switch {
+	case p.Check == "" && i >= 0:
+		m.running = slices.Delete(m.running, i, i+1)
+	case p.Check == "":
+	case i >= 0:
+		m.running[i] = p
+	default:
+		m.running = append(m.running, p)
+	}
 }
 
 // quit ends the screen, and the checks still running with it.
@@ -215,7 +297,7 @@ func (m Model) chose(c shell.Choice) tea.Cmd {
 func (m Model) Books() shell.BooksMenu { return m.books }
 
 // Init runs the checks and reads the pages, at once.
-func (m Model) Init() tea.Cmd { return tea.Batch(m.check(), m.read()) }
+func (m Model) Init() tea.Cmd { return tea.Batch(m.check(), m.read(), m.listen()) }
 
 // Interrupted says whether ctrl-c ended the screen.
 func (m Model) Interrupted() bool { return m.interrupted }
@@ -254,6 +336,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.books = m.books.Told(msg)
 	case source.Answer[[]kit.Check]:
 		m.take(msg)
+	case toldMsg:
+		return m, m.heard(msg)
 	case pagesMsg:
 		m.setTabs(msg.tabs)
 		m.takeSheets()
@@ -261,7 +345,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case fixedMsg:
 		// the checks run again, superseding a run still out
 		m.fixed(msg)
-		return m, m.checking.Again(m.env(), false)
+		m.running = nil
+		again := m.checking.Again(m.env(), false)
+		m.run.Store(int64(m.checking.Gen()))
+		if m.listening {
+			return m, again
+		}
+		return m, tea.Batch(again, m.listen())
 	case tea.KeyPressMsg:
 		return m.key(msg)
 	case tea.MouseWheelMsg:
@@ -319,6 +409,7 @@ func (m *Model) take(msg source.Answer[[]kit.Check]) {
 	if _, landed := m.checking.Take(msg); landed != source.Shown {
 		return
 	}
+	m.running = nil
 	if msg.Err != nil {
 		m.refusal = refusalOf(msg.Err)
 		m.fit()

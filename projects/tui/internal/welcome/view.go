@@ -3,6 +3,7 @@
 package welcome
 
 import (
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -245,7 +246,7 @@ func (m Model) findings() []line {
 	}
 	if m.checking.Loading {
 		if m.checking.Running() && m.refusal == "" {
-			add(-1, lead+style.Off("checking…"))
+			m.addChecking(add)
 		}
 		return out
 	}
@@ -296,7 +297,7 @@ func (m Model) findings() []line {
 	}
 	if m.checking.Running() {
 		add(-1, "")
-		add(-1, lead+style.Off("checking…"))
+		m.addChecking(add)
 	}
 	return out
 }
@@ -341,7 +342,7 @@ func (m Model) stepLines() []line {
 	if len(rows) == 0 {
 		switch {
 		case m.checking.Running():
-			add(-1, lead+style.Off("checking…"))
+			m.addChecking(add)
 		case query != "":
 			add(-1, lead+style.Off("no check matches the search"))
 		}
@@ -401,6 +402,19 @@ func withoutHeading(page string) string {
 	return page
 }
 
+// addChecking adds the lines that say the checks run: checking…, then, dim under it, the check each folder is on, and
+// the machine's, as kit says it starts each: <check> in <folder's name>.
+func (m Model) addChecking(add func(row int, text string)) {
+	add(-1, lead+style.Off("checking…"))
+	for _, p := range m.running {
+		text := p.Check
+		if p.Folder != "" {
+			text += " in " + filepath.Base(p.Folder)
+		}
+		add(-1, lead+"  "+style.Off(text))
+	}
+}
+
 // stepTail gives the lines a step with checks ends with, after its rows: checking… while the checks run again, and the
 // list of its checks left for later.
 func (m Model) stepTail(rows []int) []line {
@@ -409,7 +423,7 @@ func (m Model) stepTail(rows []int) []line {
 	add := func(row int, text string) { out = append(out, line{row, pane.Clip(text, w)}) }
 	if m.checking.Running() {
 		add(-1, "")
-		add(-1, lead+style.Off("checking…"))
+		m.addChecking(add)
 	}
 	var left []line
 	for _, i := range rows {

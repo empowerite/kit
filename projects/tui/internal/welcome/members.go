@@ -17,13 +17,16 @@ const (
 	worktreeGlyph = "🌳"
 )
 
-// checksOver gives the read of the checks over the workspace: kit welcome --checks --json over a group, as kit
-// --workspace=<group> names it, every member's desk and worktrees; over anything else, where the runner reads.
-func checksOver(r kit.Runner, ws kit.Workspace) func(context.Context, bool) ([]kit.Check, error) {
+// checksOver gives the read of the checks over the workspace: kit welcome --checks --json --progress over a group, as
+// kit --workspace=<group> names it, every member's desk and worktrees; over anything else, where the runner reads.
+// The read tells told each line of kit's progress as it comes.
+func checksOver(r kit.Runner, ws kit.Workspace) func(context.Context, func(kit.Progress)) ([]kit.Check, error) {
 	if ws.Kind == "group" && ws.Name != "" {
 		r.Group, r.NoGroup = ws.Name, false
 	}
-	return func(ctx context.Context, _ bool) ([]kit.Check, error) { return r.WelcomeChecks(ctx) }
+	return func(ctx context.Context, told func(kit.Progress)) ([]kit.Check, error) {
+		return r.WelcomeChecks(ctx, told)
+	}
 }
 
 // uncloned gives the owner/repo of each of a group's members with no checkout, in order.

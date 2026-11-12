@@ -46,7 +46,7 @@ func group(t *testing.T, msgs ...tea.Msg) (Model, *ran, string) {
 
 func TestAGroupsChecksAreReadOnceOverTheGroupWithTheUnclonedNamed(t *testing.T) {
 	m, _, path := group(t)
-	if got := calls(t, path); len(got) != 1 || got[0] != "--workspace=w welcome --checks --json" {
+	if got := calls(t, path); len(got) != 1 || got[0] != "--workspace=w welcome --checks --json --progress" {
 		t.Errorf("the reads: %q", got)
 	}
 	if v := view(m); !strings.Contains(v, "not cloned: o/c") || !strings.Contains(v, "- w 3") {
@@ -155,7 +155,8 @@ func TestAGroupsChecksEndWithTheScreen(t *testing.T) {
 	cancel()
 	ws := kit.Workspace{Kind: "group", Name: "w", Members: []kit.WorkspaceMember{{Repository: "github.com/o/a",
 		Checkout: t.TempDir()}}}
-	if _, err := checksOver(testkit.Runner(t, "welcome"), ws)(ctx, false); !errors.Is(err, context.Canceled) {
+	read := checksOver(testkit.Runner(t, "welcome"), ws)
+	if _, err := read(ctx, func(kit.Progress) {}); !errors.Is(err, context.Canceled) {
 		t.Errorf("ended: %v", err)
 	}
 }

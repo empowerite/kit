@@ -222,7 +222,7 @@ func (m Model) setupLines() []line {
 	if !headed && len(machine) == 0 {
 		switch {
 		case m.checking.Running():
-			add(-1, lead+style.Off("checking…"))
+			m.addChecking(add)
 		case query != "":
 			add(-1, lead+style.Off("no check matches the search"))
 		}

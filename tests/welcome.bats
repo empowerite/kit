@@ -87,6 +87,22 @@ ambient-system() {
     <<<"$output")" = "$(jq --null-input --compact-output --arg f "$(pwd -P)" '[[$f, "repo", true, "main", null]]')" ]
 }
 
+@test "--progress says on stderr each check as it starts, and the end of the machine's and of each folder's" {
+  run --separate-stderr "${kit_root}/bin/kit" welcome --checks --json --progress
+  [ "$status" -eq 0 ]
+  [ "$(jq --raw-output 'length' <<<"$output")" -eq 8 ]
+  [ "$stderr" = "$(printf '⏳ checking %s\n' tool-bash tool-git tool-jq tool-yq toolchain-system
+    printf '⏳ checked\n'
+    printf '⏳ checking %s in '"$(pwd -P)"'\n' repo-git kit-installed toolchain-project
+    printf '⏳ checked %s' "$(pwd -P)")" ]
+  # without it, the checks say nothing on stderr
+  run --separate-stderr checks
+  [ "$status" -eq 0 ] && [ -z "$stderr" ]
+  # it goes with --checks alone
+  run --separate-stderr "${kit_root}/bin/kit" welcome --text --progress
+  [ "$status" -eq 2 ]
+}
+
 @test "welcome's steps are introduction, toolchains, setup, customize, terms" {
   run --separate-stderr "${kit_root}/bin/kit" welcome --text
   [ "$status" -eq 1 ]
