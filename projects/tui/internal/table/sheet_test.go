@@ -791,14 +791,32 @@ func TestTwoWritersOfThePresetsFileKeepEachOthersPresets(t *testing.T) {
 		t.Fatalf("both writers' presets: %v %+v", err, all)
 	}
 	// a writer that keeps its own presets keeps what is there, and a file that does not read is not written over
-	if got, err := KeepPresets(path, "third", []Preset{{Name: "x"}}); err != nil || len(got) != 3 {
+	if got, err := KeepPresets(path, "third", []Preset{{Name: "x"}}, nil); err != nil || len(got) != 3 {
 		t.Errorf("a third writer: %v %+v", err, got)
+	}
+	// favorites are kept beside the presets, each table's, and saving a table's presets keeps another's
+	if err := KeepFavorites(path, "third", []string{"x"}); err != nil || !slices.Equal(ReadFavorites(path)["third"], []string{"x"}) {
+		t.Errorf("third's favorites: %v %q", err, ReadFavorites(path))
+	}
+	a.saveAs("ours again")
+	if all, _ := ReadPresets(path); len(all["third"]) != 1 || !slices.Equal(ReadFavorites(path)["third"], []string{"x"}) {
+		t.Errorf("another table's save dropped third's favorites: %q", ReadFavorites(path))
+	}
+	if err := WritePresets(path, map[string][]Preset{"third": {{Name: "x"}}}); err != nil ||
+		len(ReadFavorites(path)["third"]) != 1 {
+		t.Errorf("writing the presets dropped the favorites: %v", err)
+	}
+	if _, err := KeepPresets(path, "third", nil, nil); err != nil || len(ReadFavorites(path)) != 0 {
+		t.Errorf("no favorites left: %v %q", err, ReadFavorites(path))
 	}
 	if err := os.WriteFile(path, []byte("{"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := KeepPresets(path, "third", nil); err == nil {
+	if _, err := KeepPresets(path, "third", nil, nil); err == nil {
 		t.Error("kept over a file that does not read")
+	}
+	if KeepFavorites(path, "third", []string{"x"}) == nil || ReadFavorites(path) == nil {
+		t.Error("favorites kept over a file that does not read")
 	}
 	if data, _ := os.ReadFile(path); string(data) != "{" {
 		t.Errorf("the file was written over: %s", data)
@@ -809,8 +827,58 @@ func TestTwoWritersOfThePresetsFileKeepEachOthersPresets(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = os.Chmod(locked, 0o700) })
-	if _, err := KeepPresets(filepath.Join(locked, "presets.json"), "third", nil); err == nil {
+	if _, err := KeepPresets(filepath.Join(locked, "presets.json"), "third", nil, nil); err == nil {
 		t.Error("kept in a directory that cannot be written to")
+	}
+}
+
+// A view starred in the presets' menu stands first, in favorites, and the file keeps it; starred again it no longer
+// is. A favorite follows its view's rename, and is dropped once the view is deleted. Where the file cannot be written,
+// starring says so, and stars nothing.
+func TestAStarredViewIsAFavoriteTheFileKeeps(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "presets.json")
+	s := sheet(path)
+	compact := slices.IndexFunc(PresetItems(&s), func(it shell.Item) bool { return it.Name == "Compact" })
+	s.star(compact)
+	if !slices.Equal(ReadFavorites(path)["things"], []string{"Compact"}) || PresetItems(&s)[ItemViews+1].Name != FavoritesHeading ||
+		!strings.Contains(s.Notice().Text, "starred the preset Compact") {
+		t.Fatalf("Compact starred: %q, %q", ReadFavorites(path), s.Notice().Text)
+	}
+	// * in the menu, on Compact, now the favorite under the keyboard, stars it no longer; the keys bar names it
+	s.presets = s.presets.Drop(&s)
+	s.presets.At = ItemViews + 2
+	if seg, _ := s.Keys(); !strings.Contains(shellLine(seg), "* star") {
+		t.Errorf("the menu's keys: %s", shellLine(seg))
+	}
+	if !s.Key(tea.KeyPressMsg{Code: '*', Text: "*"}) || len(ReadFavorites(path)["things"]) != 0 || !s.presets.Open ||
+		!strings.Contains(s.Notice().Text, "unstarred") {
+		t.Errorf("Compact unstarred: %q", ReadFavorites(path))
+	}
+	s.presets.At = ItemSave
+	if seg, _ := s.Keys(); strings.Contains(shellLine(seg), "* star") {
+		t.Errorf("the menu's keys off a view: %s", shellLine(seg))
+	}
+	s.presets = PresetMenu{}
+	s.star(ItemSave)
+	// a favorite of the person's own follows its rename, and goes with it
+	s.saveAs("Mine")
+	s.star(slices.IndexFunc(PresetItems(&s), func(it shell.Item) bool { return it.Name == "Mine" }))
+	s.tbl.SavingAs, s.tbl.Renaming, s.tbl.Naming = true, "Mine", "Ours"
+	s.rename()
+	if !slices.Equal(ReadFavorites(path)["things"], []string{"Ours"}) || !slices.Equal(s.starred, []string{"Ours"}) {
+		t.Errorf("renamed: %q", ReadFavorites(path))
+	}
+	s.keep(s.Views().Delete("Ours"), "deleted")
+	if len(ReadFavorites(path)["things"]) != 0 || len(s.starred) != 0 {
+		t.Errorf("deleted: %q", ReadFavorites(path))
+	}
+	// a file that does not read takes no star
+	if err := os.WriteFile(path, []byte("{"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s.star(compact)
+	if len(s.starred) != 0 || !strings.Contains(s.Notice().Text, "could not be starred") {
+		t.Errorf("starred over a file that does not read: %q", s.Notice().Text)
 	}
 }
 

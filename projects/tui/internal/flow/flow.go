@@ -184,6 +184,7 @@ type Model struct {
 	handOver      fix.Exec                  // hands the terminal to a fix: tea.ExecProcess but in tests
 	ask           *ask                      // what an issues action asks before kit runs, while it asks
 	saved         map[string][]table.Preset // the person's views, by stage, as their file keeps them
+	starred       map[string][]string       // the names of the views the person starred, by stage, in their order
 	presetsPath   string                    // that file, or none
 	presetsMenu   table.PresetMenu          // the preset line's menu of views: whether it is open, and its line under the keyboard
 	fold          bool                      // whether the tables fold a value every row of a group shares, as kittui's settings say
@@ -279,6 +280,7 @@ func New(r kit.Runner, o Options) Model {
 	if m.saved, m.note.Text, err = readPresets(o.Presets); err != nil {
 		m.note.Text = fmt.Sprintf("%s %v; the file is left as it is", Failed, err)
 	}
+	m.starred = table.ReadFavorites(o.Presets)
 	m.note.Done = err == nil
 	m.rebuild()
 	for _, name := range o.Stages {

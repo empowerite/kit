@@ -179,9 +179,9 @@ func TestChoosingAViewSetsThePanelAndAChangeStrikesTheNameThrough(t *testing.T) 
 	for _, i := range table.PresetItems(&m) {
 		names = append(names, i.Name)
 	}
-	if !slices.Equal(names, []string{SaveIt, SaveAs, RenameIt, DeleteIt, "", "All Issues", "Backlog", "Underway",
+	if !slices.Equal(names, []string{SaveIt, SaveAs, RenameIt, DeleteIt, "", table.BuiltinHeading, "All Issues", "Backlog", "Underway",
 		"By Milestone", "By Iteration", "By Swimlane", "Compact"}) ||
-		table.PresetItems(&m)[5].Glyph != Checked || m.presetsMenu.At != 5 {
+		table.PresetItems(&m)[6].Glyph != Checked || m.presetsMenu.At != 6 {
 		t.Fatalf("the presets: %q, at %d", names, m.presetsMenu.At)
 	}
 	if !strings.Contains(keysOf(m), "esc close") {
@@ -240,7 +240,7 @@ func TestChoosingAViewSetsThePanelAndAChangeStrikesTheNameThrough(t *testing.T) 
 	}
 	// the menu's keys: up, a letter to the next item it starts, and esc
 	m = drive(m, press(tea.KeyEnter))
-	if m = drive(m, typed("c")[0]); m.presetsMenu.At != 11 {
+	if m = drive(m, typed("c")[0]); m.presetsMenu.At != 12 {
 		t.Errorf("c in the menu: %d", m.presetsMenu.At)
 	}
 	m = drive(m, up, esc)
@@ -301,8 +301,8 @@ func TestSaveAsKeepsThePanelInTheFileAndTheViewComesBack(t *testing.T) {
 	}
 	// the menu lists it after a rule
 	m = drive(m, press(tea.KeyEnter))
-	if items := table.PresetItems(&m); len(items) != 14 || items[12].Name != "" || items[13].Name != "Triage" ||
-		items[13].Glyph != Checked || m.presetsMenu.At != 13 {
+	if items := table.PresetItems(&m); len(items) != 15 || items[13].Name != table.MineHeading || items[14].Name != "Triage" ||
+		items[14].Glyph != Checked || m.presetsMenu.At != 14 {
 		t.Errorf("the menu: %+v, at %d", items, m.presetsMenu.At)
 	}
 	m = drive(m, esc)
@@ -324,11 +324,37 @@ func TestSaveAsKeepsThePanelInTheFileAndTheViewComesBack(t *testing.T) {
 	// another session reads it, and choosing it sets the panel
 	n := onDropdown(t, file)
 	n = drive(n, press(tea.KeyEnter))
-	n.presetsMenu.At = 13
+	n.presetsMenu.At = 14
 	if n = drive(n, press(tea.KeyEnter)); n.stages[0].ViewName != "Triage" || n.panel(0).Showing() != grid.Others ||
 		len(n.panel(0).SortKeys()) != 1 || !slices.Equal(n.panel(0).Groups(), []string{"assignees"}) ||
 		!n.panel(0).Fold {
 		t.Errorf("Triage in another session: %+v", n.panel(0))
+	}
+}
+
+// * on a view in the presets' menu stars it: it stands first, under favorites, ★ at its right, the file keeps it, and
+// the menu stays open; * again stars it no longer. A line that names no view stars nothing, and a file that does not
+// read takes no star, and says so.
+func TestAStarredViewStandsFirstAndTheFileKeepsIt(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "presets.json")
+	m := drive(onDropdown(t, file), press(tea.KeyEnter))
+	if m = drive(m, press('*')); !slices.Equal(table.ReadFavorites(file)["issues"], []string{"All Issues"}) ||
+		table.PresetItems(&m)[table.ItemViews+1].Name != table.FavoritesHeading ||
+		table.PresetItems(&m)[table.ItemViews+2].Keys != table.Starred || !m.presetsMenu.Open ||
+		!strings.Contains(m.note.Text, "starred the preset All Issues") {
+		t.Fatalf("All Issues starred: %q, %q\n%s", table.ReadFavorites(file), m.note.Text, raw(m))
+	}
+	m.presetsMenu.At = table.ItemViews + 2
+	if m = drive(m, press('*')); len(table.ReadFavorites(file)["issues"]) != 0 || !strings.Contains(m.note.Text, "unstarred") {
+		t.Errorf("All Issues unstarred: %q", table.ReadFavorites(file))
+	}
+	m.starPreset(table.ItemSave)
+	if err := os.WriteFile(file, []byte("{"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	m.starPreset(table.ItemViews + 2)
+	if len(m.viewsOf(0).Favorites()) != 0 || !strings.Contains(m.note.Text, "could not be starred") {
+		t.Errorf("starred over a file that does not read: %q", m.note.Text)
 	}
 }
 
@@ -345,7 +371,7 @@ func TestClicksOpenThePresetsAndChooseOne(t *testing.T) {
 		t.Fatalf("a click on the name: menu %v, on the line %v\n%s", m.presetsMenu.Open, m.onPreset, raw(m))
 	}
 	box, top, left := m.presetsMenu.Box(&m)
-	if m = drive(m, testkit.Click(left+3, top+1+table.ItemViews+7)); m.presetsMenu.Open || m.stages[0].ViewName != "Compact" {
+	if m = drive(m, testkit.Click(left+3, top+1+table.ItemViews+8)); m.presetsMenu.Open || m.stages[0].ViewName != "Compact" {
 		t.Fatalf("a click on Compact: menu %v, view %q\n%v", m.presetsMenu.Open, m.stages[0].ViewName, box)
 	}
 	// a click anywhere else closes the menu

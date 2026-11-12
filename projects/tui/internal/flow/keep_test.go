@@ -15,7 +15,7 @@ func TestAPictureAndAnotherScreenSavingPresetsKeepEachOthers(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "presets.json")
 	// the picture reads the file as it opens; the welcome guide's terms save a preset of theirs after
 	m := onDropdown(t, file)
-	if _, err := table.KeepPresets(file, "welcome/terms", []table.Preset{{Name: "Glossary"}}); err != nil {
+	if _, err := table.KeepPresets(file, "welcome/terms", []table.Preset{{Name: "Glossary"}}, nil); err != nil {
 		t.Fatal(err)
 	}
 	m.choosePreset(table.ItemSaveAs)
@@ -23,7 +23,7 @@ func TestAPictureAndAnotherScreenSavingPresetsKeepEachOthers(t *testing.T) {
 	m = drive(m, press(tea.KeyEnter))
 	// the terms save again, after the picture
 	terms := []table.Preset{{Name: "Glossary"}, {Name: "Short"}}
-	if _, err := table.KeepPresets(file, "welcome/terms", terms); err != nil {
+	if _, err := table.KeepPresets(file, "welcome/terms", terms, nil); err != nil {
 		t.Fatal(err)
 	}
 	all, err := table.ReadPresets(file)

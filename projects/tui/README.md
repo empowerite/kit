@@ -107,11 +107,14 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     first group's heading where the rows group, as ↑ from there comes back. On a name ⏎ opens the column's card; on the
     rows' ⏎ opens or closes them. ⏎ or a click on the pill drops down the presets' menu, in the tab's color, as the pill
     is, titled Presets at its left as a dialog is, from the control line, its right edge over the ▼: Save, Save As…,
-    Rename…, Delete, and the presets. Save As… takes a name in the selector's place, the person's preset the line was
-    set to typed already, and ⏎ saves; Rename… takes a new name the same way. Save, Rename…, and Delete act on the
-    person's preset the line was set to, and are dim on the stage's own; Delete sets the table as the one it opens on.
-    What was done is said in place of the keys, for five seconds or until a key; why something was not done stays until
-    a key.
+    Rename…, Delete, and the presets, in sections under dim headings: the person's favorites, in their order, then the
+    stage's own, built in, then the person's, mine, each preset once. Each has ★ at its right where the person starred
+    it, ☆ where not, and * on its line, or a click on the star, stars it or no longer, the menu left open; the presets
+    file keeps the favorites beside the presets, and a favorite follows its preset's rename, and goes when it is
+    deleted. Save As… takes a name in the selector's place, the person's preset the line was set to typed already, and ⏎
+    saves; Rename… takes a new name the same way. Save, Rename…, and Delete act on the person's preset the line was set
+    to, and are dim on the stage's own; Delete sets the table as the one it opens on. What was done is said in place of
+    the keys, for five seconds or until a key; why something was not done stays until a key.
   - The columns dialog, in `columns.go`, titled by the stage's fields, opens from 📇 Fields on the control line, the
     header drawing no icon of its own: every field a line, those the rows group by first, then the columns as they
     stand, then the hidden, a dim rule between each two of those it has, each with whether it shows, its sort and its

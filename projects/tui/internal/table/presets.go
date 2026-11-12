@@ -21,9 +21,13 @@ import (
 // Presets ends the preset line, after the name of the view the table is set as, and a click on it drops the presets
 // down. FieldsButton, after its glyph, Fields, stands before the selector, and opens the columns dialog. The presets'
 // menu's items are SaveIt, SaveAs, RenameIt, and DeleteIt, Save and Delete after their glyphs, Save and Deleted;
-// those, and Renamed, start what each did says. SavingAsWord and RenamingWord stand, dim, before the name typed for Save As… and Rename…. Checked marks the
-// view the table is set as.
+// those, and Renamed, start what each did says. SavingAsWord and RenamingWord stand, dim, before the name typed for
+// Save As… and Rename…. Checked marks the view the table is set as. Starred stands at the right of a view the person
+// starred, Unstarred at the right of the others, and Starring starts what starring one says.
 const (
+	Starred      = "★"
+	Unstarred    = "☆"
+	Starring     = "⭐"
 	Presets      = "▼"
 	FieldsButton = Fields + " Fields"
 	SaveIt       = "Save"
@@ -58,29 +62,81 @@ const SelectorFocus = "14"
 // PresetMenu is the presets' menu while it is open: a dropdown.
 type PresetMenu struct{ shell.Dropdown }
 
-// PresetItems gives the presets' menu: Save and Delete after their glyphs, Save As… and Rename… between them without, a
-// rule, the table's own views, a rule, and the person's, the one the table is set as checked.
-func PresetItems(h Host) []shell.Item {
-	items := []shell.Item{{Glyph: Save, Name: SaveIt}, {Name: SaveAs}, {Name: RenameIt}, {Glyph: Deleted, Name: DeleteIt},
-		{}}
+// The headings of the presets' menu's sections, dim: the person's favorites, the table's own views, and the person's.
+const (
+	FavoritesHeading = "favorites"
+	BuiltinHeading   = "built in"
+	MineHeading      = "mine"
+)
+
+// presetLine is a line of the presets' menu: what it draws, and the view it names, none for an action, a rule, or a
+// heading.
+type presetLine struct {
+	item shell.Item
+	view string
+}
+
+// presetLines gives the presets' menu's lines: Save and Delete after their glyphs, Save As… and Rename… between them
+// without, a rule, then the views in sections, each under its heading where it has a view: the person's favorites, in
+// their order; the table's own views; and the person's. A view stands once, in favorites where it is one; the one the
+// table is set as is checked; and each has Starred or Unstarred at its right, as the person starred it or not.
+func presetLines(h Host) []presetLine {
+	lines := []presetLine{{item: shell.Item{Glyph: Save, Name: SaveIt}}, {item: shell.Item{Name: SaveAs}},
+		{item: shell.Item{Name: RenameIt}}, {item: shell.Item{Glyph: Deleted, Name: DeleteIt}}, {}}
 	v := h.Views()
-	is := v.Is(*h.Table())
-	for k, p := range v.All() {
-		if k == len(v.Own) {
-			items = append(items, shell.Item{})
+	is, favorites := v.Is(*h.Table()), v.Favorites()
+	section := func(heading string, names []string) {
+		if len(names) == 0 {
+			return
 		}
-		glyph := ""
-		if p.Name == is {
-			glyph = Checked
+		lines = append(lines, presetLine{item: shell.Item{Name: heading}})
+		for _, name := range names {
+			glyph, star := "", Unstarred
+			if name == is {
+				glyph = Checked
+			}
+			if slices.Contains(favorites, name) {
+				star = Starred
+			}
+			lines = append(lines, presetLine{item: shell.Item{Glyph: glyph, Name: name, Keys: star}, view: name})
 		}
-		items = append(items, shell.Item{Glyph: glyph, Name: p.Name})
+	}
+	others := func(ps []Preset) []string {
+		var out []string
+		for _, p := range ps {
+			if !slices.Contains(favorites, p.Name) {
+				out = append(out, p.Name)
+			}
+		}
+		return out
+	}
+	section(FavoritesHeading, favorites)
+	section(BuiltinHeading, others(v.Own))
+	section(MineHeading, others(v.Saved))
+	return lines
+}
+
+// PresetItems gives the presets' menu's lines as the menu draws them, as presetLines says.
+func PresetItems(h Host) []shell.Item {
+	var items []shell.Item
+	for _, l := range presetLines(h) {
+		items = append(items, l.item)
 	}
 	return items
 }
 
+// PresetView gives the view the presets' menu's line k names, and whether it names one.
+func PresetView(h Host, k int) (string, bool) {
+	lines := presetLines(h)
+	if k < 0 || k >= len(lines) || lines[k].view == "" {
+		return "", false
+	}
+	return lines[k].view, true
+}
+
 // PresetEnabled says whether a line of the presets' menu acts: Save while the line was set to a view of the person's
 // own that the panel no longer is; Rename… and Delete while it was set to one; Save As… and every view always; a rule
-// never.
+// or a heading never.
 func PresetEnabled(h Host, k int) bool {
 	v := h.Views()
 	mine, own := v.Mine(h.Table().ViewName)
@@ -89,9 +145,11 @@ func PresetEnabled(h Host, k int) bool {
 		return own && !v.Same(v.Current(h.Table().View), mine)
 	case ItemRename, ItemDelete:
 		return own
+	case ItemSaveAs:
+		return true
 	}
-	items := PresetItems(h)
-	return k >= 0 && k < len(items) && items[k].Name != ""
+	_, ok := PresetView(h, k)
+	return ok
 }
 
 // Drop gives the presets' menu dropped down, the view the table is set as under the keyboard, else Save As….
@@ -103,11 +161,17 @@ func (pm PresetMenu) Drop(h Host) PresetMenu {
 	return PresetMenu{shell.Dropdown{Open: true, At: at}}
 }
 
-// Key takes a key while the menu is open, as a dropdown does, and gives the line chosen, -1 for none.
-func (pm *PresetMenu) Key(h Host, k tea.KeyPressMsg) int {
-	var chosen int
+// Key takes a key while the menu is open, as a dropdown does, and gives the line chosen, -1 for none; and the line whose
+// view * stars, or no longer, -1 for none.
+func (pm *PresetMenu) Key(h Host, k tea.KeyPressMsg) (chosen, star int) {
+	if k.String() == "*" {
+		if _, ok := PresetView(h, pm.At); ok {
+			return -1, pm.At
+		}
+		return -1, -1
+	}
 	pm.Dropdown, chosen = pm.Dropdown.Key(k, PresetItems(h), func(k int) bool { return PresetEnabled(h, k) })
-	return chosen
+	return chosen, -1
 }
 
 // Box gives the presets' menu's lines, in its tab's color, as the selector is, titled PresetsTitle at its top edge's
@@ -124,14 +188,23 @@ func (pm PresetMenu) Box(h Host) (lines []string, top, left int) {
 	return lines, top, left
 }
 
-// Click takes a click while the menu is open, as a dropdown does, and gives the line chosen, -1 for none: on a line
-// that acts, it; on another line of the box, nothing; anywhere else, the menu closes.
-func (pm *PresetMenu) Click(h Host, x, y int) int {
+// Click takes a click while the menu is open, as a dropdown does, and gives the line chosen, -1 for none: on a view's
+// star, the line whose view it stars, or no longer, the menu left open; on a line that acts, it; on another line of the
+// box, nothing; anywhere else, the menu closes.
+func (pm *PresetMenu) Click(h Host, x, y int) (chosen, star int) {
 	box, top, left := pm.Box(h)
-	var chosen int
+	if k := y - top - 1; k >= 0 && k < len(box)-2 {
+		if _, ok := PresetView(h, k); ok {
+			plain := ansi.Strip(box[k+1])
+			if at := strings.LastIndexAny(plain, Starred+Unstarred); at >= 0 && x == left+ansi.StringWidth(plain[:at]) {
+				pm.At = k
+				return -1, k
+			}
+		}
+	}
 	pm.Dropdown, chosen = pm.Dropdown.Click(x, y, top, left, ansi.StringWidth(box[0]), PresetItems(h),
 		func(k int) bool { return PresetEnabled(h, k) })
-	return chosen
+	return chosen, -1
 }
 
 // PresetLine gives the preset's selector, at the right end of the control line: the name of the preset the table is

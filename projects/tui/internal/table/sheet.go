@@ -44,6 +44,7 @@ type Sheet struct {
 	records       []Record
 	tbl           Table
 	saved         []Preset
+	starred       []string
 	fold, hide    bool
 	glyphs        bool
 	top, height   int
@@ -79,7 +80,7 @@ func NewSheet(schema *Schema, name, color, path string) Sheet {
 	case err != nil:
 		s.note.Text = fmt.Sprintf("%s %v; the file is left as it is", Failed, err)
 	}
-	s.saved = all[s.store]
+	s.saved, s.starred = all[s.store], ReadFavorites(path)[s.store]
 	opening := s.Views().Opening()
 	s.tbl.ViewName, s.tbl.View = opening.Name, opening.Panel(schema.Of(), grid.Panel{})
 	return s
@@ -310,7 +311,7 @@ func (s *Sheet) Views() Views {
 	if len(own) == 0 {
 		own = []Preset{{Name: Default}}
 	}
-	return Views{Fields: s.schema.Of(), Own: own, Saved: s.saved}
+	return Views{Fields: s.schema.Of(), Own: own, Saved: s.saved, Starred: s.starred}
 }
 
 // Columnar says whether the table has fields the columns dialog lists.
@@ -479,6 +480,7 @@ func (s *Sheet) layers() shell.Layers[Sheet] {
 		Presets: func(s *Sheet) *PresetMenu { return &s.presets },
 		Popped:  func(*Sheet) tea.Cmd { return nil },
 		Choose:  (*Sheet).choose,
+		Star:    (*Sheet).star,
 	}.Layers()
 }
 
@@ -836,7 +838,7 @@ func (s *Sheet) rename() {
 		s.refused(name, err)
 		return
 	case name == from:
-	case !s.keep(saved, "renamed"):
+	case !s.keepStarred(saved, s.Views().Renamed(from, name), "renamed"):
 		return
 	default:
 		s.tbl.ViewName = name
@@ -848,13 +850,38 @@ func (s *Sheet) rename() {
 // keep writes the person's presets of the table as they are given, under its store, into the file as it stands, as
 // KeepPresets does, so another screen's saved since are kept; and says whether it could. When it could not, the notice
 // says why, and nothing changes.
-func (s *Sheet) keep(saved []Preset, what string) bool {
-	if _, err := KeepPresets(s.path, s.store, saved); err != nil {
+func (s *Sheet) keep(saved []Preset, what string) bool { return s.keepStarred(saved, s.starred, what) }
+
+// keepStarred keeps the person's presets, as keep does, and their favorites as starred names them, but those that name
+// a view no longer there.
+func (s *Sheet) keepStarred(saved []Preset, starred []string, what string) bool {
+	v := s.Views()
+	v.Saved, v.Starred = saved, starred
+	if _, err := KeepPresets(s.path, s.store, saved, v.Favorites()); err != nil {
 		s.note.Text, s.note.Done = fmt.Sprintf("%s the preset could not be %s: %v", Failed, what, err), false
 		return false
 	}
-	s.saved = saved
+	s.saved, s.starred = saved, v.Favorites()
 	return true
+}
+
+// star stars the view the presets' menu's line k names, or no longer, and keeps the favorites in the file, as
+// KeepFavorites does, saying what it did, or why it could not.
+func (s *Sheet) star(k int) {
+	name, ok := PresetView(s, k)
+	if !ok {
+		return
+	}
+	starred, did := s.Views().Star(name), "starred"
+	if s.Views().Favorite(name) {
+		did = "unstarred"
+	}
+	if err := KeepFavorites(s.path, s.store, starred); err != nil {
+		s.note.Text, s.note.Done = fmt.Sprintf("%s the preset could not be %s: %v", Failed, did, err), false
+		return
+	}
+	s.starred = starred
+	s.note = s.note.Did(Starring + " " + did + " the preset " + name)
 }
 
 // Followed is what a sheet's browse gives for a link the screen follows itself, as to another of its rows: the sheet

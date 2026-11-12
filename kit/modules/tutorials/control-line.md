@@ -31,9 +31,10 @@ With no groups, it is the rows' `▾` and their count alone.
 - **Save**  keep your changes in this preset
 - **Save As…**  keep them as a new preset
 - **Rename…** and **Delete**
-- The presets, to switch to
+- The presets, to switch to: your favorites first, then the built-in ones, then yours
 
-Save, Rename…, and Delete are dim on the built-in presets.
+Save, Rename…, and Delete are dim on the built-in presets. Click a preset's ☆, or press `*` on it, to make it a
+favorite; ★ marks one.
 
 ## Keys
 

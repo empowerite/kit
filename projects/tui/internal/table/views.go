@@ -21,11 +21,49 @@ var (
 	ErrTaken   = errors.New("the name is a preset already")
 )
 
-// Views is a table's views: its fields, its own views, the one it opens on the first, and the person's.
+// Views is a table's views: its fields, its own views, the one it opens on the first, the person's, and the names of
+// those the person starred, in their order.
 type Views struct {
-	Fields []Field
-	Own    []Preset
-	Saved  []Preset
+	Fields  []Field
+	Own     []Preset
+	Saved   []Preset
+	Starred []string
+}
+
+// Favorites gives the names of the views the person starred, in their order, but those that name a view since gone,
+// which stay hidden until the person's presets are saved, and are dropped then.
+func (v Views) Favorites() []string {
+	var out []string
+	for _, name := range v.Starred {
+		if slices.ContainsFunc(v.All(), func(p Preset) bool { return p.Name == name }) && !slices.Contains(out, name) {
+			out = append(out, name)
+		}
+	}
+	return out
+}
+
+// Favorite says whether the person starred the view of the name, and it is there.
+func (v Views) Favorite(name string) bool { return slices.Contains(v.Favorites(), name) }
+
+// Star gives the names of the views the person starred with the view of the name starred, last, or no longer, those
+// since gone dropped.
+func (v Views) Star(name string) []string {
+	if v.Favorite(name) {
+		return slices.DeleteFunc(v.Favorites(), func(n string) bool { return n == name })
+	}
+	return append(v.Favorites(), name)
+}
+
+// Renamed gives the names of the views the person starred, the view renamed from one name to another starred by its new
+// name in its place.
+func (v Views) Renamed(from, to string) []string {
+	out := slices.Clone(v.Starred)
+	for k, name := range out {
+		if name == from {
+			out[k] = to
+		}
+	}
+	return out
 }
 
 // All gives the views, the table's own first, then the person's.

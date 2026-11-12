@@ -37,6 +37,7 @@ func (m Model) layers() shell.Layers[Model] {
 		Presets: func(m *Model) *table.PresetMenu { return &m.presetsMenu },
 		Popped:  (*Model).askMe,
 		Choose:  (*Model).choosePreset,
+		Star:    (*Model).starPreset,
 	}.Layers()...)
 	return append(layers, shell.Layers[Model]{
 		{ // the searches remembered, one chosen searched again

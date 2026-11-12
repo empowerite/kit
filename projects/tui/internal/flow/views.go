@@ -41,6 +41,7 @@ const (
 	Save     = table.Save
 	Renamed  = table.Renamed
 	Deleted  = table.Deleted
+	Starring = table.Starring
 )
 
 // named is a stage's panel as views.json, the views file before presets.json, keeps it, by the columns' labels: the
@@ -199,7 +200,7 @@ func (m Model) viewsOf(i int) table.Views { return m.viewsNamed(m.stages[i].name
 
 // viewsNamed gives a stage's views by its name, as viewsOf does.
 func (m Model) viewsNamed(name string) table.Views {
-	return table.Views{Fields: fieldsOf(name), Own: builtinsOf(name), Saved: m.saved[name]}
+	return table.Views{Fields: fieldsOf(name), Own: builtinsOf(name), Saved: m.saved[name], Starred: m.starred[name]}
 }
 
 // views gives a stage's views, its own first, then the person's.
@@ -259,13 +260,41 @@ func (m Model) own() (table.Preset, bool) { return m.viewsOf(m.stage).Mine(m.sta
 // table.KeepPresets does, so what another screen saved since stays, and says whether it could; when it could not, the
 // notice says why, and nothing changes.
 func (m *Model) keep(saved []table.Preset, what string) bool {
-	all, err := table.KeepPresets(m.presetsPath, m.stages[m.stage].name, saved)
+	return m.keepStarred(saved, m.viewsOf(m.stage).Starred, what)
+}
+
+// keepStarred keeps the person's views of the selected stage, as keep does, and their favorites as starred names them,
+// but those that name a view no longer there.
+func (m *Model) keepStarred(saved []table.Preset, starred []string, what string) bool {
+	name, v := m.stages[m.stage].name, m.viewsOf(m.stage)
+	v.Saved, v.Starred = saved, starred
+	all, err := table.KeepPresets(m.presetsPath, name, saved, v.Favorites())
 	if err != nil {
 		m.note.Text, m.note.Done = fmt.Sprintf("%s the preset could not be %s: %v", Failed, what, err), false
 		return false
 	}
-	m.saved = all
+	m.saved, m.starred[name] = all, v.Favorites()
 	return true
+}
+
+// starPreset stars the view the presets' menu's line k names, or no longer, and keeps the favorites in the file, as
+// table.KeepFavorites does, saying what it did, or why it could not.
+func (m *Model) starPreset(k int) {
+	name, ok := table.PresetView(m, k)
+	if !ok {
+		return
+	}
+	v := m.viewsOf(m.stage)
+	starred, did := v.Star(name), "starred"
+	if v.Favorite(name) {
+		did = "unstarred"
+	}
+	if err := table.KeepFavorites(m.presetsPath, m.stages[m.stage].name, starred); err != nil {
+		m.note.Text, m.note.Done = fmt.Sprintf("%s the preset could not be %s: %v", Failed, did, err), false
+		return
+	}
+	m.starred[m.stages[m.stage].name] = starred
+	m.done(Starring + " " + did + " the preset " + name)
 }
 
 // savePreset keeps the selected stage's panel under the name typed for Save As…: the person's view of that name is
@@ -315,7 +344,7 @@ func (m *Model) renamePreset() {
 	case name == from:
 		s.SavingAs, s.Naming, s.Renaming = false, "", ""
 		return
-	case !m.keep(saved, "renamed"):
+	case !m.keepStarred(saved, m.viewsOf(m.stage).Renamed(from, name), "renamed"):
 		return
 	}
 	if s.ViewName == from {
