@@ -26,6 +26,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/empowerite/kit/projects/tui/internal/fix"
 	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/pane"
@@ -177,6 +178,8 @@ type Model struct {
 	asked         bool                      // whether kit has been asked for the caller's login
 	browse        func(url string) error    // opens a page in the browser
 	note          shell.Notice              // what kit did, or why something was not done, in place of the keys
+	copied        bool                      // whether the refusal's command was just copied, until the next key or click
+	handOver      fix.Exec                  // hands the terminal to a fix: tea.ExecProcess but in tests
 	ask           *ask                      // what a backlog action asks before kit runs, while it asks
 	saved         map[string][]table.Preset // the person's views, by stage, as their file keeps them
 	presetsPath   string                    // that file, or none
@@ -244,7 +247,7 @@ func open(r kit.Runner, o Options, w Words) Model {
 // selected and maximized, the bar's keys on its title as they are on any maximized tab's.
 func New(r kit.Runner, o Options) Model {
 	m := Model{app: o.App, runner: r, limit: deadline, origin: o.Origin, noFetch: o.NoFetch, fresh: o.Fresh,
-		filters: o.Filters, width: 80, height: 24, browse: browser, appMenu: shell.Menu{Here: o.App},
+		filters: o.Filters, width: 80, height: 24, browse: browser, handOver: tea.ExecProcess, appMenu: shell.Menu{Here: o.App},
 		books: shell.BooksMenu{Fallback: o.Origin.Repo}, fold: true, legend: legend{at: bottomRight}}
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 	m.clock = o.Clock
@@ -398,8 +401,10 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.newIssue(msg)
 	case actedMsg:
 		return m, m.acted(msg)
+	case ranMsg:
+		return m, m.ran(msg)
 	case tea.KeyPressMsg:
-		m.note.Text = ""
+		m.note.Text, m.copied = "", false
 		return m.key(msg)
 	case tea.MouseWheelMsg:
 		d := 0
@@ -417,6 +422,10 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if n, cmd, ok := m.layers().Click(m, msg); ok {
 			return n, cmd
 		}
+		if cmd, ok := m.remedyClick(msg); ok {
+			return m, cmd
+		}
+		m.copied = false
 		if msg.Y == 0 && len(m.stages) > 0 && m.inPanel && msg.X == m.recallAt() &&
 			m.panel(m.stage).Recall {
 			m.recent = m.recent.Opened()
@@ -750,6 +759,9 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	}
 	if menu, app := menuFor(k); menu {
 		return m, m.dropDown(app)
+	}
+	if cmd, ok := m.remedyKey(k); ok {
+		return m, cmd
 	}
 	if bar, ok := m.barTakes(k); ok {
 		m.choose(bar)

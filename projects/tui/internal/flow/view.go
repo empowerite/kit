@@ -145,6 +145,8 @@ func (m Model) keys() shell.Path {
 			return append(path, m.headingKeys(stop))
 		}
 		return append(path, m.presetKeys())
+	case m.onRemedy():
+		return append(path, m.remedyKeys())
 	case m.inRows:
 		return append(path, m.rowKeys())
 	}
@@ -314,11 +316,7 @@ func (m Model) allLines(i int) []table.Line {
 	case s.src.Loading:
 		return []table.Line{{Row: -1, Text: lead + style.Off("loading")}}
 	case s.refusal != "":
-		var out []table.Line
-		for _, l := range pane.Wrap(Failed+" "+s.refusal, m.paneWidth()-len(lead)) {
-			out = append(out, table.Line{Row: -1, Text: lead + style.Refusal(l)})
-		}
-		return out
+		return m.refusalLines(i)
 	}
 	rows := m.rows(i)
 	switch p := m.panel(i); {
