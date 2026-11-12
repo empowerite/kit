@@ -334,8 +334,14 @@ func (h *handover) SetStderr(w io.Writer) { h.err = w }
 // Run says what runs, runs it, and waits for ⏎, giving how the process ended; a process the terminal could not start
 // is told of too, so the person reads why before the screen returns.
 func (h *handover) Run() error {
+	// The child gets the terminal itself, an *os.File, which exec hands over as it is: any other reader is copied in
+	// a goroutine that takes the ⏎ meant for the wait below.
+	tty, ok := h.in.(*os.File)
+	if !ok {
+		tty = os.Stdin
+	}
 	if h.cmd.Stdin == nil {
-		h.cmd.Stdin = h.in
+		h.cmd.Stdin = tty
 	}
 	if h.cmd.Stdout == nil {
 		h.cmd.Stdout = h.out
@@ -348,7 +354,7 @@ func (h *handover) Run() error {
 	fmt.Fprint(h.out, Report(h.what, err))
 	key := make([]byte, 1)
 	for {
-		if n, err := h.in.Read(key); n == 1 && key[0] == '\n' || err != nil {
+		if n, err := tty.Read(key); n == 1 && key[0] == '\n' || err != nil {
 			break
 		}
 	}

@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -190,7 +192,8 @@ func TestInNamesTheFolderAndFolderReadsItBack(t *testing.T) {
 }
 
 // A hand-off clears the screen, says what runs and why, runs the process on the terminal handed to it, says how it
-// ended, and waits for ⏎; the process's own failure is what done takes.
+// ended, and waits for ⏎: the terminal is a pipe here, an *os.File as the real one is, so the child is given it as it is,
+// and the ⏎ is read from it once the child has ended. The process's own failure is what done takes.
 func TestHandOverSaysWhatRunsAndHowItEndedThenWaitsForEnter(t *testing.T) {
 	for _, tc := range []struct {
 		command, why, want string
@@ -202,24 +205,69 @@ func TestHandOverSaysWhatRunsAndHowItEndedThenWaitsForEnter(t *testing.T) {
 	} {
 		var out bytes.Buffer
 		c, _ := Process(tc.command)
-		in := strings.NewReader("\nafter")
+		r, w, err := os.Pipe()
+		if err != nil {
+			t.Fatal(err)
+		}
 		h := &handover{cmd: c, what: tc.command, why: tc.why}
-		h.SetStdin(in)
+		h.SetStdin(r)
 		h.SetStdout(&out)
 		h.SetStderr(&out)
-		err := h.Run()
+		ended := make(chan error)
+		go func() { ended <- h.Run() }()
+		// it says how the process ended, then waits: no ⏎ typed, it has not returned
+		select {
+		case <-ended:
+			t.Fatalf("%s: returned before ⏎", tc.command)
+		case <-time.After(300 * time.Millisecond):
+		}
+		if _, err := w.WriteString("x\nafter"); err != nil {
+			t.Fatal(err)
+		}
+		err = <-ended
 		got := out.String()
 		if (err != nil) != tc.fails || !strings.HasPrefix(got, "\x1b[2J\x1b[3J\x1b[H"+"Running `"+tc.command+"`:") ||
 			!strings.Contains(got, tc.want) || !strings.HasSuffix(got, "Press ⏎ to return to kit.\n") {
 			t.Errorf("%s: err %v, terminal %q", tc.command, err, got)
 		}
-		if tc.command == "echo hello" && (!strings.Contains(got, "\nhello\n") || in.Len() != len("after")) {
-			t.Errorf("the process's output, or ⏎ waited for: %q, %d left", got, in.Len())
+		if tc.command == "echo hello" && !strings.Contains(got, "\nhello\n") {
+			t.Errorf("the process's output: %q", got)
 		}
 		if tc.why != "" && !strings.Contains(got, tc.why+";") {
 			t.Errorf("no why in %q", got)
 		}
+		// what was typed after the ⏎ is still the terminal's
+		w.Close()
+		if rest, _ := io.ReadAll(r); string(rest) != "after" {
+			t.Errorf("%s: left on the terminal %q", tc.command, rest)
+		}
+		r.Close()
 	}
+}
+
+// A terminal that is no *os.File is not handed to a child, which would copy it in a goroutine; the process's own
+// standard input is, and a terminal that ends without a ⏎ ends the wait.
+func TestHandOverTakesTheStandardInputForAnyOtherTerminal(t *testing.T) {
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	was := os.Stdin
+	os.Stdin = r
+	defer func() { os.Stdin = was; r.Close() }()
+	w.Close()
+	var out bytes.Buffer
+	c, _ := Process("true")
+	h := &handover{cmd: c, what: "true"}
+	h.SetStdin(strings.NewReader(""))
+	h.SetStdout(&out)
+	h.SetStderr(&out)
+	if err := h.Run(); err != nil || c.Stdin != r {
+		t.Errorf("err %v, the child's input %v", err, c.Stdin)
+	}
+}
+
+func TestHandOverGivesATeaCommand(t *testing.T) {
 	if HandOver(exec.Command("true"), "true", "", nil) == nil {
 		t.Error("HandOver gave no command")
 	}

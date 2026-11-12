@@ -1080,11 +1080,8 @@ func (m *Model) scroll(n int) {
 func (m *Model) runFix() tea.Cmd {
 	c := m.checks[m.cursor]
 	id, key := c.ID, c.Key()
-	what := c.Fix
-	if what == "" {
-		what = "kit welcome --fix " + c.ID
-	}
-	return m.exec(m.over().WelcomeFix(c), what, c.Line, func(err error) tea.Msg { return fixedMsg{id: id, key: key, err: err} })
+	// runFix is reached only on a row with a fix, as fixUnder says, so Fix is the command shown
+	return m.exec(m.over().WelcomeFix(c), c.Fix, c.Line, func(err error) tea.Msg { return fixedMsg{id: id, key: key, err: err} })
 }
 
 // over gives the runner over the workspace the screen shows, as checksOver reads the checks over it.
