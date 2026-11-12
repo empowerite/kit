@@ -1,0 +1,66 @@
+{
+  "docs": "https://github.com/empowerite/kit/blob/main/docs/terminals.md",
+  "probes": {
+    "kitty-keyboard": {
+      "need": "keys",
+      "held": "{name} speaks the kitty keyboard protocol",
+      "failed": "{name} does not speak the kitty keyboard protocol, so ⇧⌫ arrives as ⌫ and ⌥ with an arrow as two keys"
+    },
+    "emoji-width": {
+      "need": "widths",
+      "held": "{name} draws 📚 in two cells",
+      "failed": "{name} draws 📚 in {emoji_width} cell(s), not two, so kittui's columns shift"
+    },
+    "ambiguous-width": {
+      "need": "widths",
+      "held": "{name} draws ↑ in one cell",
+      "failed": "{name} draws ↑ in {ambiguous_width} cells, not one, so kittui's arrows and rules shift"
+    },
+    "color": {
+      "need": "color",
+      "held": "{name} gives kittui 256 colors or more",
+      "failed": "{name} gives kittui fewer than 256 colors"
+    }
+  },
+  "terminals": {
+    "iterm": {
+      "name": "iTerm2",
+      "anchor": "iterm2",
+      "findings": [
+        {
+          "id": "triggers",
+          "need": "speed",
+          "bad": ".triggers > 0 and .triggers_interactive",
+          "line": "iTerm2 runs the triggers of profile {profile} on every line kittui repaints",
+          "held": "iTerm2 runs no trigger of profile {profile} while kittui is up",
+          "fix": "iTerm2 → Settings → Profiles → {profile} → Advanced → Triggers: untick Enabled in interactive apps"
+        }
+      ]
+    },
+    "ssh": {
+      "name": "The terminal over ssh",
+      "anchor": "over-ssh",
+      "unread": "kit cannot read its settings from this machine; it judges what the terminal answers"
+    },
+    "tmux": {
+      "name": "tmux",
+      "anchor": "tmux",
+      "unread": "kit judges what tmux answers, not the terminal outside it"
+    },
+    "screen": {
+      "name": "GNU screen",
+      "anchor": "gnu-screen",
+      "unread": "kit judges what screen answers, not the terminal outside it"
+    },
+    "zellij": {
+      "name": "zellij",
+      "anchor": "zellij",
+      "unread": "kit judges what zellij answers, not the terminal outside it"
+    },
+    "unknown": {
+      "name": "This terminal",
+      "anchor": "unknown-terminals",
+      "unread": "kit does not know it, so it judges what it answers"
+    }
+  }
+}
