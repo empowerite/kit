@@ -1,6 +1,12 @@
 «head»
 forge/«stem»:artifacts()«call_artifacts…= { error "not written yet"; return 1; }»
 forge/«stem»:attestations()«call_attestations…= { error "not written yet"; return 1; }»
+forge/«stem»:bot-app()«call_bot_app…= { error "not written yet"; return 1; }»
+forge/«stem»:bot-installation()«call_bot_installation…= { error "not written yet"; return 1; }»
+forge/«stem»:bot-installations()«call_bot_installations…= { error "not written yet"; return 1; }»
+forge/«stem»:bot-repositories()«call_bot_repositories…= { error "not written yet"; return 1; }»
+forge/«stem»:bot-revoke()«call_bot_revoke…= { error "not written yet"; return 1; }»
+forge/«stem»:bot-token()«call_bot_token…= { error "not written yet"; return 1; }»
 forge/«stem»:bots()«call_bots…= { error "not written yet"; return 1; }»
 forge/«stem»:branch-for-issue()«call_branch_for_issue…= { error "not written yet"; return 1; }»
 forge/«stem»:bypasses()«call_bypasses…= { error "not written yet"; return 1; }»
