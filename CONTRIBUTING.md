@@ -42,6 +42,7 @@ are taken with git and `gh`: kit does not run them.
 - a test fails, or a package does not build
 - a statement in a package is run by none of that package's tests
 - a test takes over a second, or a package's tests over ten
+- an import goes the wrong way through the layers of the design, or a package is in no layer
 - the gate itself takes over 3 minutes
 
 No test the gate runs starts a process or reaches the network. `go test ./...` is the quick loop while working.

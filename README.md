@@ -6,7 +6,8 @@ kit keeps the work of AI coding agents trustworthy. What it is for, and the prin
 ## Status
 
 Pre-alpha. This repository holds those two pages, the [foundations design](docs/design/foundations.md), and one
-command, `kit`, which prints its version: `go run ./cmd/kit version`. `bin/gate` runs the gate.
+command, `kit`, which prints its version: `go run ./cmd/kit version`. `bin/gate` runs the gate. The design's
+packages are in place, and empty.
 
 ## License
 
