@@ -1,0 +1,16 @@
+#!/bin/sh
+# bin/gate - the gate: vet, and every package's tests, judged for failures, coverage, and time
+# The rules the tree itself keeps (its layers, its formatting, one module, every file in every build) are a test
+# among them, in tools/layers.
+set -eu
+CDPATH='' cd -- "$(dirname -- "$0")/.."
+since=$(date +%s)
+go vet ./...
+work=$(mktemp -d)
+trap 'rm -rf "${work:?}"' EXIT
+go build -o "${work}/gate" ./tools/gate
+# The events go to a file and go test's status is kept, so the judge sees a run that stopped short. No test may
+# take the gate's whole budget: one that hangs is ended, and fails.
+status=0
+go test -json -timeout=3m -coverprofile="${work}/cover.out" ./... > "${work}/events" || status=$?
+"${work}/gate" --profile="${work}/cover.out" --since="${since}" --status="${status}" < "${work}/events"
