@@ -30,3 +30,6 @@ func run(args []string, stdout, stderr io.Writer) int {
 	fmt.Fprintf(stderr, "kit: no such command: %s\n", args[0])
 	return 2
 }
+
+// unused is in no test, to see the gate refuse it.
+func unused() int { return 1 }
