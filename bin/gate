@@ -1,7 +1,7 @@
 #!/bin/sh
 # bin/gate - the gate: formatting, vet, and every package's tests, judged for failures, coverage, and time
 set -eu
-cd "$(dirname "$0")/.."
+CDPATH='' cd -- "$(dirname -- "$0")/.."
 since=$(date +%s)
 # go list names this module's packages alone, so another issue's worktree under worktrees/ is left out.
 unformatted=$(go list -f '{{.Dir}}' ./... | xargs gofmt -l)
@@ -14,6 +14,9 @@ fi
 go vet ./...
 work=$(mktemp -d)
 trap 'rm -rf "${work:?}"' EXIT
-# The judge is built first and run as itself, so its exit status is the gate's, with no line from go run after it.
 go build -o "${work}/gate" ./tools/gate
-go test -json -coverprofile="${work}/cover.out" ./... | "${work}/gate" --profile="${work}/cover.out" --since="${since}"
+# The events go to a file and go test's status is kept, so the judge sees a run that stopped short. No test may
+# take the gate's whole budget: one that hangs is ended, and fails.
+status=0
+go test -json -timeout=3m -coverprofile="${work}/cover.out" ./... > "${work}/events" || status=$?
+"${work}/gate" --profile="${work}/cover.out" --since="${since}" --status="${status}" < "${work}/events"
