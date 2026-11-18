@@ -61,13 +61,27 @@ func TestAFailedTestIsAFinding(t *testing.T) {
 	want(t, got, Finding{"test", "x/b.TestG", ""})
 }
 
+func TestAFailedTestSaysWhatTheTestSaid(t *testing.T) {
+	// A test's own lines are the ones go test sets in by four spaces. Its RUN and FAIL lines are go test's.
+	got := judge(t, `{"Action":"output","Package":"x/b","Test":"TestG","Output":"=== RUN   TestG\n"}
+{"Action":"output","Package":"x/b","Test":"TestG","Output":"    b_test.go:9: G(1) = 0; want 1\n"}
+{"Action":"output","Package":"x/b","Test":"TestG","Output":"    b_test.go:12: G(0) = 1; want 0\n"}
+{"Action":"output","Package":"x/b","Test":"TestG","Output":"--- FAIL: TestG (0.00s)\n"}
+{"Action":"fail","Package":"x/b","Test":"TestG","Elapsed":0}
+{"Action":"output","Package":"x/b","Test":"TestH","Output":"    b_test.go:20: a line of a test that passes\n"}
+{"Action":"pass","Package":"x/b","Test":"TestH","Elapsed":0}
+{"Action":"fail","Package":"x/b","Elapsed":0.2}
+`, covered)
+	want(t, got, Finding{"test", "x/b.TestG", "b_test.go:9: G(1) = 0; want 1\nb_test.go:12: G(0) = 1; want 0"})
+}
+
 func TestAPackageThatDoesNotBuildSaysWhatTheCompilerSaid(t *testing.T) {
 	got := judge(t, `{"ImportPath":"x/d [x/d.test]","Action":"build-output","Output":"# x/d [x/d.test]\n"}
 {"ImportPath":"x/d [x/d.test]","Action":"build-output","Output":"d/d.go:3:17: undefined: missing\n"}
 {"ImportPath":"x/d [x/d.test]","Action":"build-fail"}
 {"Action":"fail","Package":"x/d","Elapsed":0,"FailedBuild":"x/d [x/d.test]"}
 `, "mode: set\n")
-	want(t, got, Finding{"build", "x/d", "d/d.go:3:17: undefined: missing\n"})
+	want(t, got, Finding{"build", "x/d", "d/d.go:3:17: undefined: missing"})
 }
 
 func TestAPackageThatFailsOutsideATestIsAFinding(t *testing.T) {

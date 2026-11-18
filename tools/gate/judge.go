@@ -26,8 +26,9 @@ type event struct {
 // many packages and top-level tests the run held. took says how long the gate has run, and is asked once both are
 // read: the judge starts as go test does, and go test writes its profile as it ends.
 func Judge(events, profile io.Reader, took func() time.Duration, limits Limits) (findings []Finding, packages, tests int, err error) {
-	said := map[string]string{} // what the compiler said of an import path that did not build
-	failed := map[string]bool{} // the packages that a finding already names
+	said := map[string]string{}   // what the compiler said of an import path that did not build
+	failed := map[string]bool{}   // the packages that a finding already names
+	told := map[string][]string{} // what each test said in its own lines, which go test sets in by four spaces
 	lines := bufio.NewScanner(events)
 	lines.Buffer(nil, 16<<20)
 	for n := 1; lines.Scan(); n++ {
@@ -42,10 +43,13 @@ func Judge(events, profile io.Reader, took func() time.Duration, limits Limits) 
 		case e.Action == "build-output" && !strings.HasPrefix(e.Output, "#"):
 			said[path] += e.Output
 		case e.Action == "build-fail":
-			findings, failed[path] = append(findings, Finding{"build", path, said[path]}), true
+			findings, failed[path] = append(findings, Finding{"build", path, strings.TrimSpace(said[path])}), true
+		case e.Action == "output" && e.Test != "" && strings.HasPrefix(e.Output, "    "):
+			told[e.Package+"."+e.Test] = append(told[e.Package+"."+e.Test], strings.TrimSpace(e.Output))
 		case ended && e.Test != "":
 			if e.Action == "fail" {
-				findings, failed[e.Package] = append(findings, Finding{"test", e.Package + "." + e.Test, ""}), true
+				test := e.Package + "." + e.Test
+				findings, failed[e.Package] = append(findings, Finding{"test", test, strings.Join(told[test], "\n")}), true
 			}
 			if strings.Contains(e.Test, "/") {
 				continue // a subtest's time is inside its test's

@@ -101,6 +101,20 @@ func TestRunRefusesAndListsEachFinding(t *testing.T) {
 	}
 }
 
+func TestRunSetsInTheLaterLinesOfAFinding(t *testing.T) {
+	var out bytes.Buffer
+	events := `{"ImportPath":"x/d [x/d.test]","Action":"build-output","Output":"d/d.go:3:17: undefined: missing\n"}
+{"ImportPath":"x/d [x/d.test]","Action":"build-output","Output":"d/d.go:4:2: undefined: gone\n"}
+{"ImportPath":"x/d [x/d.test]","Action":"build-fail"}
+{"Action":"fail","Package":"x/d","Elapsed":0}
+`
+	code := run([]string{"--profile=" + profileOf(t, "mode: set\n"), "--since=1000"}, strings.NewReader(events), &out, at(1012))
+	wanted := "gate: build: x/d: d/d.go:3:17: undefined: missing\n  d/d.go:4:2: undefined: gone\ngate: refused: 1 finding(s)\n"
+	if code != 1 || out.String() != wanted {
+		t.Errorf("run = %d, %q; want 1, %q", code, out.String(), wanted)
+	}
+}
+
 func TestRunWithoutItsOptionsSaysItsUsage(t *testing.T) {
 	for _, args := range [][]string{
 		nil,

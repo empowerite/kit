@@ -75,7 +75,7 @@ func run(args []string, stdin io.Reader, stdout io.Writer, now func() time.Time)
 		return 2
 	}
 	for _, f := range findings {
-		fmt.Fprintf(stdout, "gate: %s: %s: %s\n", f.Rule, f.Where, f.Detail)
+		fmt.Fprintf(stdout, "gate: %s: %s: %s\n", f.Rule, f.Where, strings.ReplaceAll(f.Detail, "\n", "\n  "))
 	}
 	if len(findings) > 0 {
 		fmt.Fprintf(stdout, "gate: refused: %d finding(s)\n", len(findings))
