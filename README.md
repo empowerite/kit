@@ -6,9 +6,9 @@ decided is in [docs/decisions.md](docs/decisions.md).
 
 ## Status
 
-Pre-alpha. This repository holds those two pages, the [foundations design](docs/design/foundations.md), and one
-command, `kit`, which prints its version: `go run ./cmd/kit version`. `bin/gate` runs the gate. The design's
-packages are in place, and empty.
+Pre-alpha. Beside those pages, this repository holds its first design and the retrospective it starts from, under
+[docs/design/](docs/design/), and one command, `kit`, which prints its version: `go run ./cmd/kit version`.
+`bin/gate` runs the gate. The design's packages are in place, and empty.
 
 ## License
 

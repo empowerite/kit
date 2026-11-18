@@ -1,5 +1,9 @@
-# The owner alone changes the spine: the charter, the designs, the decisions, and how work is done.
+# The owner alone changes the spine and the gate: the charter, the designs, the decisions, how work is done, the
+# table of the layers, and what holds a change to the rules.
 /docs/charter.md    @jeffrey-aguilera
 /docs/design/       @jeffrey-aguilera
 /docs/decisions.md  @jeffrey-aguilera
 /CONTRIBUTING.md    @jeffrey-aguilera
+/tools/             @jeffrey-aguilera
+/bin/gate           @jeffrey-aguilera
+/.github/           @jeffrey-aguilera
