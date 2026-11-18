@@ -40,11 +40,13 @@ are taken with git and `gh`: kit does not run them.
 
 - `gofmt` would change a file, or `go vet` objects
 - a test fails, or a package does not build
+- a test skips itself: a skip passes no gate
 - a statement in a package is run by none of that package's tests
+- a package's tests end without running, or `go test` stops short
 - a test takes over a second, or a package's tests over ten
 - the gate itself takes over 3 minutes
 
-No test the gate runs starts a process or reaches the network. `go test ./...` is the quick loop while working.
+`go test ./...` is the quick loop while working.
 
 ## The owner's approval
 

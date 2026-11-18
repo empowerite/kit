@@ -1,5 +1,6 @@
-// Command gate judges a run of this repository's tests: it reads what go test -json prints, and the coverage profile
-// the run wrote, and refuses a failure, a statement no test runs, a slow test, and a slow gate. bin/gate runs it.
+// Command gate judges a run of this repository's tests: it reads what go test -json printed, the coverage profile
+// the run wrote, and the status go test ended with, and refuses a failure, a skip, a statement no test runs, a slow
+// test, a slow gate, and a run that stopped short. bin/gate runs it, once go test has ended.
 package main
 
 import (
@@ -18,69 +19,41 @@ func main() {
 	exit(run(os.Args[1:], os.Stdin, os.Stdout, time.Now))
 }
 
-// later is a file that is opened when it is first read: go test writes its profile as it ends, after its events.
-type later struct {
-	path string
-	file *os.File
-}
-
-func (l *later) Read(p []byte) (int, error) {
-	if l.file == nil {
-		file, err := os.Open(l.path)
-		if err != nil {
-			return 0, err
-		}
-		l.file = file
-	}
-	return l.file.Read(p)
-}
-
-// Close closes the file, where it was opened.
-func (l *later) Close() {
-	if l.file != nil {
-		l.file.Close()
-	}
-}
-
-// run judges the events on stdin against the profile --profile names, for a gate that started at --since, and gives
-// the exit status: 0 when the gate holds, 1 when it refuses, and 2 when it cannot judge.
+// run judges the events on stdin against the profile --profile names, for a gate that started at --since and a
+// go test that ended with --status. It gives the exit status: 0 when the gate holds, 1 when it refuses, and 2 when
+// it cannot judge.
 func run(args []string, stdin io.Reader, stdout io.Writer, now func() time.Time) int {
-	var profile, since string
-	unknown := false
+	options := map[string]string{}
 	for _, arg := range args {
-		switch name, value, _ := strings.Cut(arg, "="); name {
-		case "--profile":
-			profile = value
-		case "--since":
-			since = value
-		default:
-			unknown = true
-		}
+		name, value, _ := strings.Cut(arg, "=")
+		options[name] = value
 	}
-	started, err := strconv.ParseInt(since, 10, 64)
-	if unknown || profile == "" || err != nil {
-		fmt.Fprintln(stdout, "usage: gate --profile=<file> --since=<unix seconds>")
+	started, errSince := strconv.ParseInt(options["--since"], 10, 64)
+	status, errStatus := strconv.Atoi(options["--status"])
+	if len(options) != 3 || options["--profile"] == "" || errSince != nil || errStatus != nil {
+		fmt.Fprintln(stdout, "usage: gate --profile=<file> --since=<unix seconds> --status=<go test's exit status>")
 		return 2
 	}
-	file := &later{path: profile}
-	defer file.Close()
-	var took time.Duration
-	elapsed := func() time.Duration {
-		took = now().Sub(time.Unix(started, 0))
-		return took
+	// A profile that cannot be opened is no profile: go test writes none when it stops before any package ends.
+	var profile io.Reader
+	if file, err := os.Open(options["--profile"]); err == nil {
+		defer file.Close()
+		profile = file
 	}
-	findings, packages, tests, err := Judge(stdin, file, elapsed, Limits{time.Second, 10 * time.Second, 3 * time.Minute})
+	took := now().Sub(time.Unix(started, 0))
+	verdict, err := Judge(stdin, profile, took, status, Limits{time.Second, 10 * time.Second, 3 * time.Minute})
 	if err != nil {
 		fmt.Fprintf(stdout, "gate: %v\n", err)
 		return 2
 	}
-	for _, f := range findings {
+	for _, f := range verdict.Findings {
 		fmt.Fprintf(stdout, "gate: %s: %s: %s\n", f.Rule, f.Where, strings.ReplaceAll(f.Detail, "\n", "\n  "))
 	}
-	if len(findings) > 0 {
-		fmt.Fprintf(stdout, "gate: refused: %d finding(s)\n", len(findings))
+	if len(verdict.Findings) > 0 {
+		fmt.Fprintf(stdout, "gate: refused: %d finding(s)\n", len(verdict.Findings))
 		return 1
 	}
-	fmt.Fprintf(stdout, "gate: ok: %d package(s), %d test(s), %s\n", packages, tests, took.Round(time.Second))
+	fmt.Fprintf(stdout, "gate: ok: %d package(s) tested, %d with nothing to test, %d test(s), %s\n",
+		verdict.Tested, verdict.Bare, verdict.Tests, took.Round(time.Second))
 	return 0
 }
