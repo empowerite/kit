@@ -9,8 +9,8 @@ are kit-poc's.
 
 The PoC was asked to show that kit's idea works: write down the rules an agent must follow, put them where any
 harness reads them, check them in CI, and take work from an issue to a merged pull request with the same few
-commands on any forge, seen in one terminal UI. It was not asked to be a product, but it was built like one: 79k lines of Go, 34k of shell, 37k of bats, and 33k of Markdown in
-24 days (1,582 commits, 393 of them on 2026-11-12).
+commands on any forge, seen in one terminal UI. It was not asked to be a product, but it was built like one: 79k
+lines of Go, 34k of shell, 37k of bats, and 33k of Markdown in 24 days (1,582 commits, 393 of them on 2026-11-12).
 
 ## Numbers
 
@@ -56,13 +56,13 @@ The screen was built from tables and menus outward; the act (target, effect, con
 
 ## Patterns behind the issues
 
-1. **Slices without a system.** Work came in slices (#609 "slice 1 of ..."). Each slice had a spec; the whole did not. So
-   decisions flip: circled tab digits (#415, then #566 "again"), labels ending in half circles (#568 "again").
-   Nobody owned the answer.
+1. **Slices without a system.** Work came in slices (#609 "slice 1 of ..."). Each slice had a spec; the whole did
+   not. So decisions flip: circled tab digits (#415, then #566 "again"), labels ending in half circles (#568
+   "again"). Nobody owned the answer.
 2. **Polish before the core worked.** About 36% of the kittui issues are about glyph widths, fonts, menus, and rules,
    while the core loop (see, choose, act, read the result) was not yet usable.
-3. **Review output outran fixing.** One fan-out produced 361 issues in two days and 436 medium findings (#561). Issue per
-   ask plus no triage and no close until the merge gives a tracker that cannot say what matters.
+3. **Review output outran fixing.** One fan-out produced 361 issues in two days and 436 medium findings (#561). An
+   issue for every ask, no triage, and no close until the merge give a tracker that cannot say what matters.
 4. **Docs and code drift.** Five issues say a page or diagram "says what the code does not do" (#532, #536, #544 and
    others); both sides are hand-written. #597 proposes data-driven docs.
 5. **The suite is the unit of everything.** 94 bats files and 199 Go test files run as one gate on every push, on a

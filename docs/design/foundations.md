@@ -420,8 +420,8 @@ cold and 0.7 seconds when nothing had changed, and one package of whole-screen t
 ## How the work is done
 
 - **The spine.** The charter, this design, the data's schemas, the table of packages, and a log of decisions. Only
-  the owner changes the spine. An agent proposes a change to it and does not make one, and a question the log has decided is
-  opened again only by the owner.
+  the owner changes the spine. An agent proposes a change to it and does not make one, and a question the log has
+  decided is opened again only by the owner.
 - **A slice is a workflow.** Each slice ends in a scenario that the owner runs in the UI on a real repository. A
   slice is done when its scenario passes, the gate is green, and the owner has used it.
 - **Contract first, then many agents.** One session writes a slice's interfaces, its fakes, and its scenario. Only
