@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -29,6 +30,64 @@ func TestRunSaysOk(t *testing.T) {
 	code := run([]string{"--profile=" + profileOf(t, covered), "--since=1000"}, strings.NewReader(ok), &out, at(1012))
 	if code != 0 || out.String() != "gate: ok: 2 package(s), 1 test(s), 12s\n" {
 		t.Errorf("run = %d, %q; want 0 and the ok line", code, out.String())
+	}
+}
+
+// written is a run's events that, as they end, write the run's coverage profile, as go test does: the profile is not
+// there while the events are read.
+type written struct {
+	events  io.Reader
+	path    string
+	profile string
+}
+
+func (w written) Read(p []byte) (int, error) {
+	n, err := w.events.Read(p)
+	if err == io.EOF {
+		if failed := os.WriteFile(w.path, []byte(w.profile), 0o600); failed != nil {
+			return n, failed
+		}
+	}
+	return n, err
+}
+
+func TestRunOpensTheProfileOnlyOnceTheEventsEnd(t *testing.T) {
+	var out bytes.Buffer
+	path := filepath.Join(t.TempDir(), "cover.out")
+	events := written{strings.NewReader(ok), path, covered}
+	code := run([]string{"--profile=" + path, "--since=1000"}, events, &out, at(1012))
+	if code != 0 || out.String() != "gate: ok: 2 package(s), 1 test(s), 12s\n" {
+		t.Errorf("run = %d, %q; want 0 and the ok line", code, out.String())
+	}
+}
+
+// ending is a run's events that say when they have ended.
+type ending struct {
+	events io.Reader
+	ended  *bool
+}
+
+func (e ending) Read(p []byte) (int, error) {
+	n, err := e.events.Read(p)
+	*e.ended = *e.ended || err == io.EOF
+	return n, err
+}
+
+func TestRunTakesTheTimeOnceTheEventsEnd(t *testing.T) {
+	// The judge starts as go test does, so the time the gate took is read when the events end, not before them.
+	var out bytes.Buffer
+	ended := false
+	clock := func() time.Time {
+		if !ended {
+			return time.Unix(1000, 0)
+		}
+		return time.Unix(1181, 0)
+	}
+	events := ending{strings.NewReader(ok), &ended}
+	code := run([]string{"--profile=" + profileOf(t, covered), "--since=1000"}, events, &out, clock)
+	wanted := "gate: budget: the gate: 3m1s, over 3m0s\ngate: refused: 1 finding(s)\n"
+	if code != 1 || out.String() != wanted {
+		t.Errorf("run = %d, %q; want 1, %q", code, out.String(), wanted)
 	}
 }
 

@@ -23,8 +23,9 @@ type event struct {
 }
 
 // Judge reads a run's events and its coverage profile, and gives what the gate refuses, in the order found, with how
-// many packages and top-level tests the run held. took is how long the gate has run.
-func Judge(events, profile io.Reader, took time.Duration, limits Limits) (findings []Finding, packages, tests int, err error) {
+// many packages and top-level tests the run held. took says how long the gate has run, and is asked once both are
+// read: the judge starts as go test does, and go test writes its profile as it ends.
+func Judge(events, profile io.Reader, took func() time.Duration, limits Limits) (findings []Finding, packages, tests int, err error) {
 	said := map[string]string{} // what the compiler said of an import path that did not build
 	failed := map[string]bool{} // the packages that a finding already names
 	lines := bufio.NewScanner(events)
@@ -35,7 +36,7 @@ func Judge(events, profile io.Reader, took time.Duration, limits Limits) (findin
 			return nil, 0, 0, fmt.Errorf("go test's line %d is no event: %v", n, err)
 		}
 		path, _, _ := strings.Cut(e.ImportPath, " ")
-		took := time.Duration(e.Elapsed * float64(time.Second))
+		elapsed := time.Duration(e.Elapsed * float64(time.Second))
 		ended := e.Action == "pass" || e.Action == "fail" || e.Action == "skip"
 		switch {
 		case e.Action == "build-output" && !strings.HasPrefix(e.Output, "#"):
@@ -50,18 +51,21 @@ func Judge(events, profile io.Reader, took time.Duration, limits Limits) (findin
 				continue // a subtest's time is inside its test's
 			}
 			tests++
-			if took > limits.Test {
-				findings = append(findings, Finding{"slow", e.Package + "." + e.Test, over(took, limits.Test)})
+			if elapsed > limits.Test {
+				findings = append(findings, Finding{"slow", e.Package + "." + e.Test, over(elapsed, limits.Test)})
 			}
 		case ended:
 			packages++
 			if e.Action == "fail" && !failed[e.Package] {
 				findings = append(findings, Finding{"package", e.Package, "it failed outside a test"})
 			}
-			if took > limits.Package {
-				findings = append(findings, Finding{"slow", e.Package, over(took, limits.Package)})
+			if elapsed > limits.Package {
+				findings = append(findings, Finding{"slow", e.Package, over(elapsed, limits.Package)})
 			}
 		}
+	}
+	if err := lines.Err(); err != nil {
+		return nil, 0, 0, fmt.Errorf("go test's events broke off: %v", err)
 	}
 	if packages == 0 {
 		findings = append(findings, Finding{"empty", "go test", "it printed nothing"})
@@ -71,8 +75,8 @@ func Judge(events, profile io.Reader, took time.Duration, limits Limits) (findin
 		return nil, 0, 0, err
 	}
 	findings = append(findings, uncovered...)
-	if took > limits.Whole {
-		findings = append(findings, Finding{"budget", "the gate", over(took, limits.Whole)})
+	if whole := took(); whole > limits.Whole {
+		findings = append(findings, Finding{"budget", "the gate", over(whole, limits.Whole)})
 	}
 	return findings, packages, tests, nil
 }
@@ -108,6 +112,9 @@ func unrun(profile io.Reader) ([]Finding, error) {
 			findings = append(findings, Finding{"coverage", file + ":" + first,
 				fmt.Sprintf("%d statement(s) no test runs", statements)})
 		}
+	}
+	if err := lines.Err(); err != nil {
+		return nil, fmt.Errorf("the coverage profile cannot be read: %v", err)
 	}
 	return findings, nil
 }

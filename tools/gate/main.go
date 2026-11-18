@@ -18,6 +18,30 @@ func main() {
 	exit(run(os.Args[1:], os.Stdin, os.Stdout, time.Now))
 }
 
+// later is a file that is opened when it is first read: go test writes its profile as it ends, after its events.
+type later struct {
+	path string
+	file *os.File
+}
+
+func (l *later) Read(p []byte) (int, error) {
+	if l.file == nil {
+		file, err := os.Open(l.path)
+		if err != nil {
+			return 0, err
+		}
+		l.file = file
+	}
+	return l.file.Read(p)
+}
+
+// Close closes the file, where it was opened.
+func (l *later) Close() {
+	if l.file != nil {
+		l.file.Close()
+	}
+}
+
 // run judges the events on stdin against the profile --profile names, for a gate that started at --since, and gives
 // the exit status: 0 when the gate holds, 1 when it refuses, and 2 when it cannot judge.
 func run(args []string, stdin io.Reader, stdout io.Writer, now func() time.Time) int {
@@ -38,14 +62,14 @@ func run(args []string, stdin io.Reader, stdout io.Writer, now func() time.Time)
 		fmt.Fprintln(stdout, "usage: gate --profile=<file> --since=<unix seconds>")
 		return 2
 	}
-	file, err := os.Open(profile)
-	if err != nil {
-		fmt.Fprintf(stdout, "gate: %v\n", err)
-		return 2
-	}
+	file := &later{path: profile}
 	defer file.Close()
-	took := now().Sub(time.Unix(started, 0))
-	findings, packages, tests, err := Judge(stdin, file, took, Limits{time.Second, 10 * time.Second, 3 * time.Minute})
+	var took time.Duration
+	elapsed := func() time.Duration {
+		took = now().Sub(time.Unix(started, 0))
+		return took
+	}
+	findings, packages, tests, err := Judge(stdin, file, elapsed, Limits{time.Second, 10 * time.Second, 3 * time.Minute})
 	if err != nil {
 		fmt.Fprintf(stdout, "gate: %v\n", err)
 		return 2

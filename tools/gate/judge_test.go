@@ -1,9 +1,12 @@
 package main
 
 import (
+	"errors"
+	"io"
 	"reflect"
 	"strings"
 	"testing"
+	"testing/iotest"
 	"time"
 )
 
@@ -17,10 +20,15 @@ const ok = `{"Action":"start","Package":"x/b"}
 
 const covered = "mode: set\nx/b/b.go:4.2,4.11 1 1\n"
 
+// after gives a gate that has run so long.
+func after(took time.Duration) func() time.Duration {
+	return func() time.Duration { return took }
+}
+
 // judge gives what Judge finds in a run's events and profile that took a second, and fails the test on an error.
 func judge(t *testing.T, events, profile string) []Finding {
 	t.Helper()
-	findings, _, _, err := Judge(strings.NewReader(events), strings.NewReader(profile), time.Second, limits)
+	findings, _, _, err := Judge(strings.NewReader(events), strings.NewReader(profile), after(time.Second), limits)
 	if err != nil {
 		t.Fatalf("Judge gave the error %v", err)
 	}
@@ -39,7 +47,7 @@ func want(t *testing.T, got []Finding, wanted ...Finding) {
 }
 
 func TestAPassingRunHasNoFindings(t *testing.T) {
-	findings, packages, tests, err := Judge(strings.NewReader(ok), strings.NewReader(covered), time.Second, limits)
+	findings, packages, tests, err := Judge(strings.NewReader(ok), strings.NewReader(covered), after(time.Second), limits)
 	if err != nil || len(findings) != 0 || packages != 2 || tests != 1 {
 		t.Errorf("Judge = %q, %d packages, %d tests, %v; want no findings, 2 packages, 1 test, no error",
 			findings, packages, tests, err)
@@ -91,7 +99,7 @@ func TestAPackageOverTenSecondsIsSlow(t *testing.T) {
 }
 
 func TestAGateOverThreeMinutesIsOverBudget(t *testing.T) {
-	got, _, _, err := Judge(strings.NewReader(ok), strings.NewReader(covered), 181*time.Second, limits)
+	got, _, _, err := Judge(strings.NewReader(ok), strings.NewReader(covered), after(181*time.Second), limits)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -105,9 +113,25 @@ func TestARunThatPrintedNothingIsAFinding(t *testing.T) {
 }
 
 func TestALineThatIsNoEventIsAnError(t *testing.T) {
-	_, _, _, err := Judge(strings.NewReader("FAIL\n"), strings.NewReader(covered), time.Second, limits)
+	_, _, _, err := Judge(strings.NewReader("FAIL\n"), strings.NewReader(covered), after(time.Second), limits)
 	if err == nil || !strings.Contains(err.Error(), "line 1") {
 		t.Errorf("Judge gave the error %v; want one that names line 1", err)
+	}
+}
+
+func TestEventsThatBreakOffAreAnError(t *testing.T) {
+	broken := io.MultiReader(strings.NewReader(ok), iotest.ErrReader(errors.New("the pipe broke")))
+	_, _, _, err := Judge(broken, strings.NewReader(covered), after(time.Second), limits)
+	if err == nil || !strings.Contains(err.Error(), "the pipe broke") {
+		t.Errorf("Judge gave the error %v; want the reader's own", err)
+	}
+}
+
+func TestAProfileThatBreaksOffIsAnError(t *testing.T) {
+	broken := io.MultiReader(strings.NewReader(covered), iotest.ErrReader(errors.New("the disk broke")))
+	_, _, _, err := Judge(strings.NewReader(ok), broken, after(time.Second), limits)
+	if err == nil || !strings.Contains(err.Error(), "the disk broke") {
+		t.Errorf("Judge gave the error %v; want the reader's own", err)
 	}
 }
 
@@ -119,7 +143,7 @@ func TestAProfileLineThatCannotBeReadIsAnError(t *testing.T) {
 		"mode: set\nx/b/b.go:four.2,4.11 1 1\n",
 		"x/b/b.go:4.2,4.11 1 1\n",
 	} {
-		_, _, _, err := Judge(strings.NewReader(ok), strings.NewReader(profile), time.Second, limits)
+		_, _, _, err := Judge(strings.NewReader(ok), strings.NewReader(profile), after(time.Second), limits)
 		if err == nil {
 			t.Errorf("Judge took the profile %q; want an error", profile)
 		}
