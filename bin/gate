@@ -5,7 +5,8 @@
 set -eu
 CDPATH='' cd -- "$(dirname -- "$0")/.."
 since=$(date +%s)
-go vet ./...
+# vet reads the nightly tier's tests too, so one that no longer compiles is seen here, though the gate never runs it.
+go vet -tags=nightly ./...
 work=$(mktemp -d)
 trap 'rm -rf "${work:?}"' EXIT
 go build -o "${work}/gate" ./tools/gate
