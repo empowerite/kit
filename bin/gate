@@ -1,0 +1,19 @@
+#!/bin/sh
+# bin/gate - the gate: formatting, vet, and every package's tests, judged for failures, coverage, and time
+set -eu
+cd "$(dirname "$0")/.."
+since=$(date +%s)
+# go list names this module's packages alone, so another issue's worktree under worktrees/ is left out.
+unformatted=$(go list -f '{{.Dir}}' ./... | xargs gofmt -l)
+if [ -n "${unformatted}" ]
+then
+  echo "gate: format: gofmt would change:"
+  echo "${unformatted}"
+  exit 1
+fi
+go vet ./...
+work=$(mktemp -d)
+trap 'rm -rf "${work:?}"' EXIT
+# The judge is built first and run as itself, so its exit status is the gate's, with no line from go run after it.
+go build -o "${work}/gate" ./tools/gate
+go test -json -coverprofile="${work}/cover.out" ./... | "${work}/gate" --profile="${work}/cover.out" --since="${since}"

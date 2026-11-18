@@ -34,6 +34,18 @@ are taken with git and `gh`: kit does not run them.
 - It is brought up to date by merging `main` into it. Nothing that was pushed is rewritten.
 - Every commit is signed. The owner merges, and the merge squashes.
 
+## The gate
+
+`bin/gate` runs the gate, at a desk and in CI alike. It refuses when:
+
+- `gofmt` would change a file, or `go vet` objects
+- a test fails, or a package does not build
+- a statement in a package is run by none of that package's tests
+- a test takes over a second, or a package's tests over ten
+- the gate itself takes over 3 minutes
+
+No test the gate runs starts a process or reaches the network. `go test ./...` is the quick loop while working.
+
 ## The owner's approval
 
 The owner approves by merging. GitHub lets no one approve their own pull request, and the owner is the only person
