@@ -1,16 +1,10 @@
 #!/bin/sh
-# bin/gate - the gate: formatting, vet, and every package's tests, judged for failures, coverage, and time
+# bin/gate - the gate: vet, and every package's tests, judged for failures, coverage, and time
+# The rules the tree itself keeps (its layers, its formatting, one module, every file in every build) are a test
+# among them, in tools/layers.
 set -eu
 CDPATH='' cd -- "$(dirname -- "$0")/.."
 since=$(date +%s)
-# go list names this module's packages alone, so another issue's worktree under worktrees/ is left out.
-unformatted=$(go list -f '{{.Dir}}' ./... | xargs gofmt -l)
-if [ -n "${unformatted}" ]
-then
-  echo "gate: format: gofmt would change:"
-  echo "${unformatted}"
-  exit 1
-fi
 go vet ./...
 work=$(mktemp -d)
 trap 'rm -rf "${work:?}"' EXIT
