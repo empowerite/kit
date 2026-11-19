@@ -29,6 +29,7 @@ are taken with git and `gh`: kit does not run them.
 ## A pull request
 
 - One issue has one branch, one worktree, and one pull request, which starts as a draft.
+- It is in its issue's milestone from when it is opened, so a milestone shows the changes that made it.
 - Its body is the report: what was done, the command that shows it and what the command printed, and what was not
   done.
 - It is brought up to date by merging `main` into it. Nothing that was pushed is rewritten.
