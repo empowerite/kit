@@ -51,8 +51,6 @@ These came from the owner in conversation, and the design holds them as given:
 15. The history of the default branch is a matter of correctness, not of taste: it is linear and signed, a change
     lands on it as one squashed commit, and it is never rewritten.
 16. Gradual reveal, consistency, and a path from novice to super user are tenets of the approach.
-17. A build does not know its release. A release is a tag, `release/<version>`, put afterwards on a commit whose
-    build exists already, and the same executable can answer to two releases.
 
 Everything else below is a proposal, and the list under [Calls made here](#calls-made-here) names the larger ones.
 
@@ -110,9 +108,6 @@ Each of these is real work for kit, and each gets its own design later:
 - Go 1.27, one module, one binary, `kit`, which holds the terminal UI too. It runs on macOS and Linux.
 - The forge and git hold the truth. kit keeps nothing about the work that it could not read again from them; what it
   keeps is a cache.
-- Nothing is built again to release it, and no version is set in an executable when it is built. `kit version` says
-  which build this is, by the commit it was built from, which Go records in every build. Which releases name that
-  commit is read from the tags.
 - Rules carried from the proof of concept, which the owner set there:
   - In the default lifecycle, to merge is a person's decision. An agent works in a worktree, never on the person's
     own checkout.
