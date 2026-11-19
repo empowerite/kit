@@ -10,3 +10,6 @@ owner, and only the owner changes this page.
 | 2026-11-18 | What all of kit stands on, with the points under "What the owner decided". | [the foundations design](design/foundations.md) |
 | 2026-11-18 | The order of the work: foundations, the toolchain, rules where agents look, kit for manual work, the bot. | [the foundations design](design/foundations.md#the-order-of-the-work) |
 | 2026-11-18 | A build does not know its release: a release is a tag put afterwards on a commit whose build exists, and one executable can answer to two. | [the foundations design](design/foundations.md#constraints) |
+| 2026-11-18 | A pull request that is ready asks for the owner's review; one he does not accept is a draft again, with a comment; and his words stay on the pull request. | [CONTRIBUTING.md](../CONTRIBUTING.md#the-owners-approval) |
+| 2026-11-18 | The gate runs on pull requests, and not on `main`: a pull request is up to date with `main` before it merges, so the tree that lands is the tree the gate judged. | [CONTRIBUTING.md](../CONTRIBUTING.md#the-gate) |
+| 2026-11-18 | Scripts are bash, with `[[ … ]]` and `(( … ))`, never `[ … ]`. | [CONTRIBUTING.md](../CONTRIBUTING.md#the-gate) |
