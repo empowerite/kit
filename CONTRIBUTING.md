@@ -55,6 +55,15 @@ nothing but a review can see a call of `os.StartProcess`.
 
 `go test ./...` is the quick loop while working.
 
+CI runs the gate on every pull request, and not on `main`. A pull request is up to date with `main` before it
+merges, and the merge squashes, so the tree that lands is the tree the gate judged. Each run keeps, as artifacts of
+the run:
+
+- what the gate made, whether it held or refused: `go test`'s events, its coverage profile, and the gate's verdict
+- kit, as `bin/build` builds it for macOS and Linux, where the gate held
+
+Scripts are bash. A test in one is written `[[ … ]]`, and arithmetic `(( … ))`, never `[ … ]`.
+
 ## The owner's approval
 
 The owner approves by merging. GitHub lets no one approve their own pull request, and the owner is the only person

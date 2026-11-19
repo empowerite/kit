@@ -8,7 +8,8 @@ decided is in [docs/decisions.md](docs/decisions.md).
 
 Pre-alpha. Beside those pages, this repository holds its first design and the retrospective it starts from, under
 [docs/design/](docs/design/), and one command, `kit`, which says which commit it was built from:
-`go build ./cmd/kit`, then `./kit version`. `bin/gate` runs the gate. The design's packages are in place, and empty.
+`go build ./cmd/kit`, then `./kit version`. `bin/gate` runs the gate, and `bin/build` builds kit for macOS and
+Linux. The design's packages are in place, and empty.
 
 ## License
 
