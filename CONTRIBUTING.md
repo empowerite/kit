@@ -38,13 +38,20 @@ are taken with git and `gh`: kit does not run them.
 
 `bin/gate` runs the gate, at a desk and in CI alike. It refuses when:
 
-- `gofmt` would change a file, or `go vet` objects
+- `go vet` objects, or `gofmt` would change a file
 - a test fails, or a package does not build
 - a test skips itself: a skip passes no gate
 - a statement in a package is run by none of that package's tests
 - a package's tests end without running, or `go test` stops short
 - a test takes over a second, or a package's tests over ten
 - the gate itself takes over 3 minutes
+- an import goes the wrong way through the layers of the design, or a package is in no layer
+- a package that is no adapter imports what starts a process, opens a connection, or touches a file
+- a test imports what starts a process or opens a connection, unless its file begins `//go:build nightly`
+- a file is in only some builds, or a `go.mod` stands below the root
+
+The rule on imports sees what a file imports, and not what it calls: a test may import `os` for its files, and
+nothing but a review can see a call of `os.StartProcess`.
 
 `go test ./...` is the quick loop while working.
 
