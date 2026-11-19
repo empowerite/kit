@@ -1,0 +1,41 @@
+# coverage.yml - tells Codecov the coverage of a commit on main, from what the gate kept for the pull request it landed as
+#
+# No test runs here, as none runs on main. bin/landed fetches the gate's results, after the check it makes for
+# landed.yml, and the profile among them goes to Codecov under the commit that landed. Codecov compares a pull
+# request with main, so main needs a figure too. It is a run of its own: Codecov being down fails this run, where it
+# is seen on the commit, and not the one the README's badge shows.
+name: coverage
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  actions: read        # the gate's run, and what it kept
+  pull-requests: read  # the pull request a commit landed as
+
+jobs:
+  codecov:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # The commit that landed: Codecov sets the profile's lines against these files.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: what the gate kept
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -o pipefail
+          bin/landed --commit="${GITHUB_SHA}" --into=gate-results | tee -a "${GITHUB_STEP_SUMMARY}"
+
+      # As in gate.yml: the repository's own upload token, the one profile, and one version of Codecov's program.
+      - name: codecov
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5  # v7.1.1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: gate-results/cover.out
+          disable_search: true
+          fail_ci_if_error: true
+          version: v11.3.2

@@ -1,8 +1,9 @@
-# landed.yml - tells Codecov the coverage of a commit on main, from what the gate kept for the pull request it landed as
+# landed.yml - says whether the commit on main is the tree the gate judged
 #
-# No test runs here, as none runs on main. bin/landed finds the pull request that landed as the commit, checks that
-# the commit holds the very tree the gate judged, and fetches the gate's results. A commit whose tree the gate did
-# not judge fails this run. Codecov compares a pull request with main, so main needs a figure too.
+# No test runs here, as none runs on main. bin/landed finds the pull request that landed as the commit, and checks
+# that the commit holds the very tree the gate judged, in a run of the gate that held. A commit of which that is not
+# so fails this run. The README's badge is this run's, so it speaks of main, and of nothing but this check:
+# coverage.yml tells Codecov, so that Codecov being down turns no badge red.
 name: landed
 
 on:
@@ -15,26 +16,15 @@ permissions:
   pull-requests: read  # the pull request a commit landed as
 
 jobs:
-  codecov:
+  landed:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      # The commit that landed: Codecov sets the profile's lines against these files.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
-      - name: what the gate kept
+      - name: what the gate judged
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -o pipefail
-          bin/landed --commit="${GITHUB_SHA}" --into=gate-results | tee -a "${GITHUB_STEP_SUMMARY}"
-
-      # As in gate.yml: the repository's own upload token, the one profile, and one version of Codecov's program.
-      - name: codecov
-        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5  # v7.1.1
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: gate-results/cover.out
-          disable_search: true
-          fail_ci_if_error: true
-          version: v11.3.2
+          bin/landed --commit="${GITHUB_SHA}" --into="${RUNNER_TEMP}/gate" | tee -a "${GITHUB_STEP_SUMMARY}"

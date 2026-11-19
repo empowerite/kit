@@ -17,3 +17,4 @@ owner, and only the owner changes this page.
 | 2026-11-18 | The name is kit, of empowerite, and it stands for nothing. | [README.md](../README.md) |
 | 2026-11-18 | The README names the pages and says the state in a line. It does not list what the repository holds, so adding a file does not change it. | [CONTRIBUTING.md](../CONTRIBUTING.md#a-pull-request) |
 | 2026-11-19 | Codecov is told what the gate measured, with the repository's own upload token. It judges nothing: the gate stays the one check a merge waits for. | [CONTRIBUTING.md](../CONTRIBUTING.md#the-gate) |
+| 2026-11-19 | The README shows two badges: Codecov's figure for `main`, and whether `main` is the tree the gate judged. | [README.md](../README.md) |
