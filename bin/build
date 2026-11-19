@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# bin/build - builds kit for each system and machine it runs on
+#
+# usage: bin/build --into=<directory>
+#
+# It makes kit-<os>-<arch> in the directory, for linux and darwin on amd64 and arm64. Each says the commit it was
+# built from: kit version. A build is no release: a release is a tag put afterwards on a commit whose build exists.
+set -o errexit -o nounset -o pipefail
+
+into=''
+for arg in "$@"
+do
+  if [[ "${arg}" == --into=?* ]]
+  then
+    into=${arg#--into=}
+  else
+    into=''
+    break
+  fi
+done
+if [[ -z "${into}" ]]
+then
+  echo 'usage: bin/build --into=<directory>' >&2
+  exit 2
+fi
+# Made, and named in full, before the build moves to the root: the directory is given from where the person stands.
+mkdir -p -- "${into}"
+into=$(CDPATH='' cd -- "${into}" && pwd)
+
+CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.."
+for platform in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64
+do
+  os=${platform%/*}
+  arch=${platform#*/}
+  # No cgo, and no path of this machine in the executable, so the same commit builds the same on any machine.
+  GOOS=${os} GOARCH=${arch} CGO_ENABLED=0 go build -trimpath -o "${into}/kit-${os}-${arch}" ./cmd/kit
+  echo "build: ${into}/kit-${os}-${arch}"
+done
