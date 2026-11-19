@@ -33,6 +33,8 @@ are taken with git and `gh`: kit does not run them.
 - Its body is the report: what was done, the command that shows it and what the command printed, and what was not
   done.
 - It is brought up to date by merging `main` into it. Nothing that was pushed is rewritten.
+- It seldom changes `README.md`. That page names the others and says the state in a line: it does not list what the
+  repository holds, so adding a file does not change it.
 - Every commit is signed. The owner merges, and the merge squashes.
 
 ## The gate
