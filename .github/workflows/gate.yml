@@ -1,0 +1,93 @@
+# gate.yml - bin/gate on every pull request, with what it made, and kit as built, attached to the run
+#
+# There is no run on main. A pull request is up to date with main before it merges, and the merge squashes, so the
+# tree that lands on main is the tree this run judged.
+name: gate
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+# A newer push to a pull request ends the run of the older one.
+concurrency:
+  group: gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # The pull request's own head, and not GitHub's merge of it into main, so that kit as built here names a commit
+      # of the pull request. The whole history comes with it, for the step below.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      # The head is judged alone, so it must hold all of main: then it is what the merge would be.
+      - name: up to date
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if ! git merge-base --is-ancestor "${BASE}" HEAD
+          then
+            echo "gate: this pull request is behind ${GITHUB_BASE_REF}: merge ${GITHUB_BASE_REF} into it" \
+              | tee -a "${GITHUB_STEP_SUMMARY}"
+            exit 1
+          fi
+
+      # setup-go finds Go on the runner, and restores Go's build cache, which a pull request's first run saves.
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5  # v7.1.0
+        with:
+          go-version-file: go.mod
+
+      - name: gate
+        run: bin/gate --keep="${RUNNER_TEMP}/gate"
+
+      - name: build
+        run: bin/build --into="${RUNNER_TEMP}/kit"
+
+      - name: summary
+        if: ${{ !cancelled() }}
+        run: |
+          {
+            echo '### The gate'
+            echo
+            echo '```text'
+            if [[ -f "${RUNNER_TEMP}/gate/verdict.txt" ]]
+            then
+              cat "${RUNNER_TEMP}/gate/verdict.txt"
+            else
+              echo 'The gate ended before its judge ran: the log of the step says why.'
+            fi
+            echo '```'
+            if [[ -x "${RUNNER_TEMP}/kit/kit-linux-amd64" ]]
+            then
+              echo
+              echo '### The build'
+              echo
+              echo '```text'
+              "${RUNNER_TEMP}/kit/kit-linux-amd64" version
+              echo '```'
+            fi
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      # What go test printed, its coverage profile, and the judge's lines, whether the gate held or refused.
+      - name: results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: gate-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/gate
+          if-no-files-found: ignore
+
+      # kit for linux and darwin, on amd64 and arm64, of a change the gate held.
+      - name: executables
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: kit-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/kit
+          if-no-files-found: error

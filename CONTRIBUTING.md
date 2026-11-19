@@ -34,6 +34,29 @@ are taken with git and `gh`: kit does not run them.
 - It is brought up to date by merging `main` into it. Nothing that was pushed is rewritten.
 - Every commit is signed. The owner merges, and the merge squashes.
 
+## The gate
+
+`bin/gate` runs the gate, at a desk and in CI alike. It refuses when:
+
+- `gofmt` would change a file, or `go vet` objects
+- a test fails, or a package does not build
+- a test skips itself: a skip passes no gate
+- a statement in a package is run by none of that package's tests
+- a package's tests end without running, or `go test` stops short
+- a test takes over a second, or a package's tests over ten
+- the gate itself takes over 3 minutes
+
+`go test ./...` is the quick loop while working.
+
+CI runs the gate on every pull request, and not on `main`. A pull request is up to date with `main` before it
+merges, and the merge squashes, so the tree that lands is the tree the gate judged. Each run keeps, as artifacts of
+the run:
+
+- what the gate made, whether it held or refused: `go test`'s events, its coverage profile, and the gate's verdict
+- kit, as `bin/build` builds it for macOS and Linux, where the gate held
+
+Scripts are bash. A test in one is written `[[ … ]]`, and arithmetic `(( … ))`, never `[ … ]`.
+
 ## The owner's approval
 
 The owner approves by merging. GitHub lets no one approve their own pull request, and the owner is the only person
