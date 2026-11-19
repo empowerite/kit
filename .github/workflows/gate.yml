@@ -64,7 +64,16 @@ jobs:
         run: bin/gate --keep="${RUNNER_TEMP}/gate"
 
       - name: build
+        id: build
         run: bin/build --into="${RUNNER_TEMP}/kit"
+
+      # What the gate leans on at GitHub: the rules on main. To read them is enough, and the job's token can. Its
+      # verdict is kept with the gate's.
+      - name: forge
+        if: ${{ !cancelled() && steps.gate.conclusion != 'skipped' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bin/forge --keep="${RUNNER_TEMP}/gate"
 
       # Saved whether the gate held or refused, since what it compiled is good either way. A run of a commit that
       # has a cache already saves none.
@@ -84,6 +93,12 @@ jobs:
             echo '```text'
             cat "${RUNNER_TEMP}/gate/verdict.txt"
             echo '```'
+            echo
+            echo '### What the gate leans on at GitHub'
+            echo
+            echo '```text'
+            cat "${RUNNER_TEMP}/gate/forge.txt"
+            echo '```'
             if [[ -x "${RUNNER_TEMP}/kit/kit-linux-amd64" ]]
             then
               echo
@@ -95,8 +110,8 @@ jobs:
             fi
           } >> "${GITHUB_STEP_SUMMARY}"
 
-      # The gate's verdict, and with it what go test printed and its coverage profile, whether the gate held or
-      # refused. A gate that ran always keeps a verdict, so nothing to attach is an error.
+      # The gate's verdict and the forge's, and with them what go test printed and its coverage profile, whether
+      # they held or refused. A gate that ran always keeps a verdict, so nothing to attach is an error.
       - name: results
         if: ${{ !cancelled() && steps.gate.conclusion != 'skipped' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
@@ -107,6 +122,7 @@ jobs:
 
       # kit for linux and darwin, on amd64 and arm64, of a change the gate held.
       - name: executables
+        if: ${{ !cancelled() && steps.build.conclusion == 'success' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: kit-${{ github.event.pull_request.head.sha }}

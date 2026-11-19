@@ -1,0 +1,33 @@
+{
+  "rules": [
+    {
+      "type": "pull_request",
+      "that": "a change reaches main only by a pull request, and only squashed",
+      "parameters": {"allowed_merge_methods": ["squash"]}
+    },
+    {
+      "type": "required_linear_history",
+      "that": "main's history is linear"
+    },
+    {
+      "type": "required_signatures",
+      "that": "every commit on main is signed"
+    },
+    {
+      "type": "non_fast_forward",
+      "that": "main is never rewritten"
+    },
+    {
+      "type": "deletion",
+      "that": "main is never deleted"
+    },
+    {
+      "type": "required_status_checks",
+      "that": "a pull request passes the gate, and is up to date with main, before it merges",
+      "parameters": {
+        "strict_required_status_checks_policy": true,
+        "required_status_checks": [{"context": "gate"}]
+      }
+    }
+  ]
+}

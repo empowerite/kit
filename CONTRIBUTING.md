@@ -66,6 +66,14 @@ keeps, as artifacts of the run:
 - the gate's verdict, whether it held or refused, and with it `go test`'s events and its coverage profile
 - kit, as `bin/build` builds it for macOS and Linux, where the gate held
 
+`bin/forge` checks that GitHub holds what the gate leans on, and CI runs it with the gate. Nothing judges `main`
+itself, so each of these must be a rule GitHub applies to it, which `tools/forge/expect.json` names:
+
+- a change reaches `main` only by a pull request, and only squashed
+- `main`'s history is linear, and every commit on it is signed
+- `main` is never rewritten, and never deleted
+- a pull request passes the check named `gate`, and is up to date with `main`, before it merges
+
 Scripts are bash. A test in one is written `[[ … ]]`, and arithmetic `(( … ))`, never `[ … ]`.
 
 ## The owner's approval
