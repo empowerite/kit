@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
-# bin/gate - the gate: formatting, vet, and every package's tests, judged for failures, coverage, and time
+# bin/gate - the gate: vet, and every package's tests, judged for failures, coverage, and time
+#
+# The rules the tree itself keeps (its layers, its formatting, one module, every file in every build) are a test
+# among them, in tools/layers.
 #
 # usage: bin/gate [--keep=<directory>]
 #
@@ -52,20 +55,9 @@ finish() {
 }
 trap finish EXIT
 
-step='format'
-# go list names this module's packages alone, so another issue's worktree under worktrees/ is left out.
-unformatted=$(go list -f '{{.Dir}}' ./... | tr '\n' '\0' | xargs -0 gofmt -l)
-if [[ -n "${unformatted}" ]]
-then
-  {
-    echo 'gate: format: gofmt would change:'
-    echo "${unformatted}"
-  } | tee "${made}/verdict.txt"
-  exit 1
-fi
-
 step='vet'
-if ! go vet ./... > "${made}/vet.txt" 2>&1
+# vet reads the nightly tier's tests too, so one that no longer compiles is seen here, though the gate never runs it.
+if ! go vet -tags=nightly ./... > "${made}/vet.txt" 2>&1
 then
   cat "${made}/vet.txt"
   echo 'gate: vet: go vet objects: its lines are above' | tee "${made}/verdict.txt"
