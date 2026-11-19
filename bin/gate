@@ -6,8 +6,10 @@
 #
 # usage: bin/gate [--keep=<directory>]
 #
-# --keep=<directory> keeps there what the run made, for a person to read or for CI to attach to its run: go test's
-# events as events.json, its coverage profile as cover.out, and the judge's own lines as verdict.txt.
+# --keep=<directory> keeps there what the run made, for a person to read or for CI to attach to its run. The verdict
+# is always among it, as verdict.txt: the judge's own lines, or the step the gate stopped at before the judge ran.
+# With it, where they were made: go test's events as events.json, its coverage profile as cover.out, and what
+# go vet objected to as vet.txt.
 set -o errexit -o nounset -o pipefail
 
 keep=''
@@ -30,25 +32,50 @@ fi
 
 CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.."
 since=$(date +%s)
-# vet reads the nightly tier's tests too, so one that no longer compiles is seen here, though the gate never runs it.
-go vet -tags=nightly ./...
 work=$(mktemp -d)
-trap 'rm -rf "${work:?}"' EXIT
-go build -o "${work}/gate" ./tools/gate
+made="${work}/made"
+mkdir "${made}"
+step='its start'
+
+# finish runs however the gate ends. It gives a verdict where no step gave one, as when a step fails in a way the
+# gate did not foresee, and keeps what was made where --keep says.
+# shellcheck disable=SC2329  # the trap below calls it
+finish() {
+  local status=$?
+  if [[ ! -s "${made}/verdict.txt" ]]
+  then
+    echo "gate: ${step}: the gate stopped at this step, with status ${status}, before a verdict:" \
+      'the lines above say why' | tee "${made}/verdict.txt"
+  fi
+  if [[ -n "${keep}" ]]
+  then
+    cp -- "${made}"/* "${keep}/"
+  fi
+  rm -rf "${work:?}"
+}
+trap finish EXIT
+
+step='vet'
+# vet reads the nightly tier's tests too, so one that no longer compiles is seen here, though the gate never runs it.
+if ! go vet -tags=nightly ./... > "${made}/vet.txt" 2>&1
+then
+  cat "${made}/vet.txt"
+  echo 'gate: vet: go vet objects: its lines are above' | tee "${made}/verdict.txt"
+  exit 1
+fi
+rm -f "${made}/vet.txt"
+
+step='the build of the judge'
+go build -o "${work}/judge" ./tools/gate
+
+step='the tests'
 # The events go to a file and go test's status is kept, so the judge sees a run that stopped short. No test may
 # take the gate's whole budget: one that hangs is ended, and fails.
 status=0
-go test -json -timeout=3m -coverprofile="${work}/cover.out" ./... > "${work}/events.json" || status=$?
+go test -json -timeout=3m -coverprofile="${made}/cover.out" ./... > "${made}/events.json" || status=$?
+
+step='the judge'
 verdict=0
-"${work}/gate" --profile="${work}/cover.out" --since="${since}" --status="${status}" < "${work}/events.json" \
-  | tee "${work}/verdict.txt" || verdict=$?
-if [[ -n "${keep}" ]]
-then
-  cp -- "${work}/events.json" "${work}/verdict.txt" "${keep}/"
-  # go test writes no profile when it stops before any package ends.
-  if [[ -f "${work}/cover.out" ]]
-  then
-    cp -- "${work}/cover.out" "${keep}/"
-  fi
-fi
+"${work}/judge" --profile="${made}/cover.out" --since="${since}" --status="${status}" < "${made}/events.json" \
+  | tee "${made}/verdict.txt" || verdict=$?
 exit "${verdict}"
