@@ -1,0 +1,9 @@
+# codecov.yml - what Codecov does with what it is told
+#
+# Codecov judges nothing here. The gate holds every package to all of its statements, and is the one check a merge
+# waits for. So Codecov puts no status on a commit and writes no comment on a pull request: it is a place to look.
+coverage:
+  status:
+    project: false
+    patch: false
+comment: false

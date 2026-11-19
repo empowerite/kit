@@ -74,6 +74,14 @@ itself, so each of these must be a rule GitHub applies to it, which `tools/forge
 - `main` is never rewritten, and never deleted
 - a pull request passes the check named `gate`, and is up to date with `main`, before it merges
 
+Codecov is told what the gate measured, and judges nothing:
+
+- A job beside the gate gives it the coverage profile of a pull request's head, with the repository's own upload
+  token, the secret `CODECOV_TOKEN`. No rule asks for that job, so Codecov being down holds no merge.
+- When a pull request lands, a run on `main` gives it the same profile under the commit that landed. It runs no
+  test: `bin/landed` fetches what the gate kept, and refuses a commit whose tree is not the one the gate judged.
+- It puts no status on a commit and writes no comment on a pull request (`codecov.yml`).
+
 Scripts are bash. A test in one is written `[[ … ]]`, and arithmetic `(( … ))`, never `[ … ]`.
 
 ## The owner's approval

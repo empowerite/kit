@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# bin/landed - fetches what the gate kept for the pull request that landed on main as a commit
+#
+# usage: bin/landed --commit=<sha> --into=<directory> [--repository=<owner>/<name>]
+#
+# Nothing runs the tests on main. A pull request is up to date with main before it merges, and the merge squashes, so
+# the commit that lands holds the tree the gate judged. This finds the pull request that landed as the commit, checks
+# that the two trees are the same one, and fetches what the gate kept of the pull request's head: its verdict, what
+# go test printed, and its coverage profile.
+#
+# It refuses a commit that no pull request landed as, a commit whose tree is not the one the gate judged, and a pull
+# request whose head the gate never held.
+#
+# --commit=<sha> is the commit on main, all 40 characters. --into=<directory> is where the results go.
+# --repository=<owner>/<name> names the repository; without it, it is the one a run names, else the one gh finds
+# here.
+set -o errexit -o nounset -o pipefail
+
+usage='usage: bin/landed --commit=<sha> --into=<directory> [--repository=<owner>/<name>]'
+repository=${GITHUB_REPOSITORY:-}
+commit=''
+into=''
+for arg in "$@"
+do
+  if [[ "${arg}" == --repository=?*/?* ]]
+  then
+    repository=${arg#--repository=}
+  elif [[ "${arg}" == --commit=?* ]]
+  then
+    commit=${arg#--commit=}
+  elif [[ "${arg}" == --into=?* ]]
+  then
+    into=${arg#--into=}
+  else
+    echo "${usage}" >&2
+    exit 2
+  fi
+done
+if [[ ! "${commit}" =~ ^[0-9a-f]{40}$ || -z "${into}" ]]
+then
+  echo "${usage}" >&2
+  exit 2
+fi
+
+if [[ -z "${repository}" ]]
+then
+  repository=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
+fi
+
+# The pull request that landed as this commit: GitHub names the commit as the pull request's merge.
+landed=$(gh api "repos/${repository}/commits/${commit}/pulls" \
+  --jq ".[] | select(.merge_commit_sha == \"${commit}\") | \"\(.number) \(.head.sha)\"")
+if [[ -z "${landed}" ]]
+then
+  echo "landed: refused: no pull request landed as commit ${commit}"
+  exit 1
+fi
+read -r number head <<< "${landed}"
+
+# The same tree, or main is not what the gate judged.
+tree=$(gh api "repos/${repository}/git/commits/${commit}" --jq .tree.sha)
+judged=$(gh api "repos/${repository}/git/commits/${head}" --jq .tree.sha)
+if [[ "${tree}" != "${judged}" ]]
+then
+  echo "landed: refused: commit ${commit} holds tree ${tree}, and the gate judged tree ${judged}," \
+    "the head of pull request #${number}"
+  exit 1
+fi
+
+# The run of the gate that held for that head, and what it kept.
+run=$(gh api "repos/${repository}/actions/workflows/gate.yml/runs?head_sha=${head}&status=success&per_page=1" \
+  --jq '.workflow_runs[0].id // empty')
+if [[ -z "${run}" ]]
+then
+  echo "landed: refused: no run of the gate held for ${head}, the head of pull request #${number}"
+  exit 1
+fi
+mkdir -p -- "${into}"
+gh run download "${run}" --repo="${repository}" --name="gate-${head}" --dir="${into}"
+echo "landed: ok: commit ${commit} is pull request #${number}, and holds the tree the gate judged in run ${run}"

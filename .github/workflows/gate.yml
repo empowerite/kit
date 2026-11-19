@@ -1,7 +1,7 @@
 # gate.yml - bin/gate on every pull request, with what it made, and kit as built, attached to the run
 #
 # There is no run on main. A pull request is up to date with main before it merges, and the merge squashes, so the
-# tree that lands on main is the tree this run judged.
+# tree that lands on main is the tree this run judged. A second job tells Codecov what the gate measured.
 name: gate
 
 on:
@@ -128,3 +128,43 @@ jobs:
           name: kit-${{ github.event.pull_request.head.sha }}
           path: ${{ runner.temp }}/kit
           if-no-files-found: error
+
+  # Codecov is told what the gate measured: the coverage profile among the gate's results. It judges nothing, so no
+  # rule asks for this job, and Codecov being down holds no merge. It is a job of its own so that its failure is seen.
+  codecov:
+    needs: gate
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # The pull request's head, as the gate judged it: Codecov sets the profile's lines against these files.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      # A gate that refused before its tests kept no profile, and one that never started kept nothing: then there is
+      # nothing to tell, and that is no error. A gate that held kept both, so their absence then is one.
+      - name: results
+        continue-on-error: ${{ needs.gate.result != 'success' }}
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
+          name: gate-${{ github.event.pull_request.head.sha }}
+          path: gate-results
+
+      - name: a gate that held kept a profile
+        if: ${{ needs.gate.result == 'success' && hashFiles('gate-results/cover.out') == '' }}
+        run: |
+          echo 'codecov: the gate held, and its results hold no coverage profile' | tee -a "${GITHUB_STEP_SUMMARY}"
+          exit 1
+
+      # The repository's own upload token. The profile is named, so nothing else is looked for, and Codecov's
+      # program is the one version named here.
+      - name: codecov
+        if: ${{ hashFiles('gate-results/cover.out') != '' }}
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5  # v7.1.1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: gate-results/cover.out
+          disable_search: true
+          fail_ci_if_error: true
+          version: v11.3.2
