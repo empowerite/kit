@@ -69,10 +69,21 @@ Scripts are bash. A test in one is written `[[ … ]]`, and arithmetic `(( … )
 The owner approves by merging. GitHub lets no one approve their own pull request, and the owner is the only person
 here, so there is no other approval to give.
 
+- A pull request that is ready asks for the owner's review. Whoever did the work makes it ready when the work is
+  complete and its checks pass, and asks for the owner's review where GitHub takes the request.
 - To approve a change is to merge its pull request.
+- Not to accept a change is to make its pull request a draft again, and to say why in a comment on it. Whoever did
+  the work changes it, answers the comment, and makes it ready again.
+- What the owner says of a pull request is written on the pull request, so that the record stays with the change.
+  Where the owner says it elsewhere, as in a session with an agent, the agent writes it on the pull request in the
+  owner's words, and says that it writes for the owner.
 - To approve the charter or a design is to merge the pull request that brings it or changes it. Such a pull request
   changes nothing else, so the merge says exactly what was approved.
 - To accept an issue is to give it a milestone.
+
+An agent's pull requests are opened under the owner's account until agents have an identity of their own. GitHub
+then offers the owner no review of them, and takes no request for one, so these are all the signals there are:
+ready, draft, the comments, and the merge.
 
 Only the first commit reached `main` without a pull request, since an empty repository can take none. It holds the
 README, the license, the charter, and this page, and it was pushed at the owner's word.
