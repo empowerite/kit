@@ -49,10 +49,11 @@ are taken with git and `gh`: kit does not run them.
 `go test ./...` is the quick loop while working.
 
 CI runs the gate on every pull request, and not on `main`. A pull request is up to date with `main` before it
-merges, and the merge squashes, so the tree that lands is the tree the gate judged. Each run keeps, as artifacts of
-the run:
+merges, and the merge squashes, so the tree that lands is the tree the gate judged. A pull request's runs go one at
+a time, and none is ended for a newer push: each starts from Go's build cache as the last one left it. Each run
+keeps, as artifacts of the run:
 
-- what the gate made, whether it held or refused: `go test`'s events, its coverage profile, and the gate's verdict
+- the gate's verdict, whether it held or refused, and with it `go test`'s events and its coverage profile
 - kit, as `bin/build` builds it for macOS and Linux, where the gate held
 
 Scripts are bash. A test in one is written `[[ … ]]`, and arithmetic `(( … ))`, never `[ … ]`.
