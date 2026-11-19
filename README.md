@@ -5,7 +5,8 @@ kit keeps the work of AI coding agents trustworthy. What it is for, and the prin
 
 ## Status
 
-Pre-alpha. This repository holds those two pages, and nothing that builds or runs.
+Pre-alpha. This repository holds those two pages, the [foundations design](docs/design/foundations.md), and one
+command, `kit`, which says which commit it was built from: `go build ./cmd/kit`, then `./kit version`.
 
 ## License
 
