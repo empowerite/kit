@@ -45,6 +45,7 @@ var Layers = map[string][]string{
 	"internal/adapters/os":     {"internal/ports", "internal/model"},
 	"internal/adapters/fake":   {"internal/ports", "internal/model"},
 	"cmd/kit":                  {"*"},
+	"tools/forge":              {},
 	"tools/gate":               {},
 	"tools/layers":             {},
 }

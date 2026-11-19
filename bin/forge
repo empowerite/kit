@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# bin/forge - checks that GitHub holds what the gate leans on: the rules on the default branch
+#
+# usage: bin/forge [--repository=<owner>/<name>] [--keep=<directory>]
+#
+# The gate judges a pull request, and nothing judges main. That is right only while GitHub holds main to certain
+# rules, which tools/forge/expect.json names. This asks GitHub for the rules that apply to the default branch, which
+# anyone who can read the repository may read, and says which of those do not hold.
+#
+# --repository=<owner>/<name> names the repository; without it, it is the one a run names, else the one gh finds
+# here. --keep=<directory> keeps the verdict there, as forge.txt.
+set -o errexit -o nounset -o pipefail
+
+repository=${GITHUB_REPOSITORY:-}
+keep=''
+for arg in "$@"
+do
+  if [[ "${arg}" == --repository=?*/?* ]]
+  then
+    repository=${arg#--repository=}
+  elif [[ "${arg}" == --keep=?* ]]
+  then
+    keep=${arg#--keep=}
+  else
+    echo 'usage: bin/forge [--repository=<owner>/<name>] [--keep=<directory>]' >&2
+    exit 2
+  fi
+done
+if [[ -n "${keep}" ]]
+then
+  # Made, and named in full, before the check moves to the root: the directory is given from where the person stands.
+  mkdir -p -- "${keep}"
+  keep=$(CDPATH='' cd -- "${keep}" && pwd)
+fi
+
+CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.."
+work=$(mktemp -d)
+step='its start'
+
+# finish runs however the check ends. It gives a verdict where no step gave one, as when GitHub cannot be asked, and
+# keeps the verdict where --keep says.
+# shellcheck disable=SC2329  # the trap below calls it
+finish() {
+  local status=$?
+  if [[ ! -s "${work}/forge.txt" ]]
+  then
+    echo "forge: ${step}: the check stopped at this step, with status ${status}, before a verdict:" \
+      'the lines above say why' | tee "${work}/forge.txt"
+  fi
+  if [[ -n "${keep}" ]]
+  then
+    cp -- "${work}/forge.txt" "${keep}/"
+  fi
+  rm -rf "${work:?}"
+}
+trap finish EXIT
+
+if [[ -z "${repository}" ]]
+then
+  step='finding the repository'
+  repository=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
+fi
+step='asking GitHub for the default branch'
+branch=$(gh api "repos/${repository}" --jq .default_branch)
+step='asking GitHub for the rules on the default branch'
+gh api "repos/${repository}/rules/branches/${branch}?per_page=100" > "${work}/rules.json"
+step='the build of the judge'
+go build -o "${work}/judge" ./tools/forge
+step='the judge'
+verdict=0
+"${work}/judge" --branch="${branch}" --rules="${work}/rules.json" --expect=tools/forge/expect.json \
+  | tee "${work}/forge.txt" || verdict=$?
+exit "${verdict}"
