@@ -1,15 +1,15 @@
-# kit: keep it trustworthy
+# kit
 
-kit keeps the work of AI coding agents trustworthy. What it is for, and the principles it holds, are in the
-[charter](docs/charter.md). How work is done here is in [CONTRIBUTING.md](CONTRIBUTING.md). What the owner has
-decided is in [docs/decisions.md](docs/decisions.md).
+What kit is for, and the principles it holds, are in the [charter](docs/charter.md).
+
+- How work is done here: [CONTRIBUTING.md](CONTRIBUTING.md)
+- What the owner has decided: [docs/decisions.md](docs/decisions.md)
+- How kit is designed: [docs/design/](docs/design/)
 
 ## Status
 
-Pre-alpha. Beside those pages, this repository holds its first design and the retrospective it starts from, under
-[docs/design/](docs/design/), and one command, `kit`, which says which commit it was built from:
-`go build ./cmd/kit`, then `./kit version`. `bin/gate` runs the gate, and `bin/build` builds kit for macOS and
-Linux. The design's packages are in place, and empty.
+Pre-alpha: no release has been made. `bin/build` builds kit for macOS and Linux, and `kit version` says which
+commit a build is of.
 
 ## License
 

@@ -13,3 +13,6 @@ owner, and only the owner changes this page.
 | 2026-11-18 | A pull request that is ready asks for the owner's review; one he does not accept is a draft again, with a comment; and his words stay on the pull request. | [CONTRIBUTING.md](../CONTRIBUTING.md#the-owners-approval) |
 | 2026-11-18 | The gate runs on pull requests, and not on `main`: a pull request is up to date with `main` before it merges, so the tree that lands is the tree the gate judged. | [CONTRIBUTING.md](../CONTRIBUTING.md#the-gate) |
 | 2026-11-18 | Scripts are bash, with `[[ … ]]` and `(( … ))`, never `[ … ]`. | [CONTRIBUTING.md](../CONTRIBUTING.md#the-gate) |
+| 2026-11-18 | A pull request is in its issue's milestone from when it is opened. | [CONTRIBUTING.md](../CONTRIBUTING.md#a-pull-request) |
+| 2026-11-18 | The name is kit, of empowerite, and it stands for nothing. | [README.md](../README.md) |
+| 2026-11-18 | The README names the pages and says the state in a line. It does not list what the repository holds, so adding a file does not change it. | [CONTRIBUTING.md](../CONTRIBUTING.md#a-pull-request) |
