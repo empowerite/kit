@@ -9,7 +9,7 @@
 # go test printed, and its coverage profile.
 #
 # It refuses a commit that no pull request landed as, a commit whose tree is not the one the gate judged, and a pull
-# request whose head the gate never held.
+# request whose head the gate never held. The gate held when the run's job gate did, the check a merge waits for.
 #
 # --commit=<sha> is the commit on main, all 40 characters. --into=<directory> is where the results go.
 # --repository=<owner>/<name> names the repository; without it, it is the one a run names, else the one gh finds
@@ -67,9 +67,21 @@ then
   exit 1
 fi
 
-# The run of the gate that held for that head, and what it kept.
-run=$(gh api "repos/${repository}/actions/workflows/gate.yml/runs?head_sha=${head}&status=success&per_page=1" \
-  --jq '.workflow_runs[0].id // empty')
+# The run of the gate that held for that head, and what it kept. A merge waits for the check named gate, which is
+# that job alone, and not for the run's other jobs: the run may still be going when the commit lands. So the run
+# taken is the newest whose job gate held, whatever the run's own state.
+run=''
+for candidate in $(gh api "repos/${repository}/actions/workflows/gate.yml/runs?head_sha=${head}&per_page=20" \
+  --jq '.workflow_runs[].id')
+do
+  held=$(gh api "repos/${repository}/actions/runs/${candidate}/jobs" \
+    --jq '[.jobs[] | select(.name == "gate" and .conclusion == "success")] | length')
+  if (( held > 0 ))
+  then
+    run=${candidate}
+    break
+  fi
+done
 if [[ -z "${run}" ]]
 then
   echo "landed: refused: no run of the gate held for ${head}, the head of pull request #${number}"
