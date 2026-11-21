@@ -42,6 +42,9 @@ are taken with git and `gh`: kit does not run them.
 `bin/gate` runs the gate, at a desk and in CI alike. It refuses when:
 
 - `go vet` objects, or `gofmt` would change a file
+- `kit tools check` finds what the tools kit.yml pins and kit.lock locks lack, or kit cannot fetch them
+- the program kit fetched is not the one kit.lock names: the gate's judge reads the lock itself
+- shellcheck, at the version kit.lock pins, finds anything in a script of the repository's
 - a test fails, or a package does not build
 - a test skips itself: a skip passes no gate
 - a statement in a package is run by none of that package's tests
@@ -56,7 +59,12 @@ are taken with git and `gh`: kit does not run them.
 The rule on imports sees what a file imports, and not what it calls: a test may import `os` for its files, and
 nothing but a review can see a call of `os.StartProcess`.
 
-`go test ./...` is the quick loop while working.
+`go test ./...` is the quick loop while working. `go test -tags=nightly ./...` adds the nightly tier, the tests that
+start a process or reach the network, which `nightly.yml` runs each night on Linux and macOS.
+
+The gate builds kit from the tree it judges, and has it fetch the tools kit.lock pins. It passes `--trust=checkout`,
+which trusts the checkout for that run alone: to run the gate is the person's own act. CI keeps kit's cache of tools
+between runs while kit.lock is the same.
 
 CI runs the gate on every pull request, and not on `main`. A pull request is up to date with `main` before it
 merges, and the merge squashes, so the tree that lands is the tree the gate judged. A pull request's runs go one at

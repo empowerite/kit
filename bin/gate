@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
-# bin/gate - the gate: vet, and every package's tests, judged for failures, coverage, and time
+# bin/gate - the gate: vet, the tools kit.lock pins, shellcheck, and every package's tests, judged for failures,
+# coverage, and time
 #
 # The rules the tree itself keeps (its layers, its formatting, one module, every file in every build) are a test
 # among them, in tools/layers.
+#
+# The gate builds kit, and has it fetch the tools kit.lock pins; the judge then holds each program to the lock
+# itself, so the gate does not take kit's word that a tool is the one pinned. --trust=checkout trusts this checkout
+# for the run alone: to run the gate is the person's own act.
 #
 # usage: bin/gate [--keep=<directory>]
 #
@@ -68,6 +73,42 @@ rm -f "${made}/vet.txt"
 step='the build of the judge'
 go build -o "${work}/judge" ./tools/gate
 
+step='the build of kit'
+go build -o "${work}/kit" ./cmd/kit
+
+step='the tools'
+if ! "${work}/kit" tools check > "${made}/tools.txt" 2>&1 \
+  || ! "${work}/kit" tools fetch --trust=checkout >> "${made}/tools.txt" 2>&1 \
+  || ! shellcheck=$("${work}/kit" tools path shellcheck --trust=checkout 2>> "${made}/tools.txt")
+then
+  cat "${made}/tools.txt"
+  echo 'gate: tools: kit cannot give the tools kit.lock pins: its lines are above' | tee "${made}/verdict.txt"
+  exit 1
+fi
+if ! "${work}/judge" --program="${shellcheck}" --tool=shellcheck --lock=kit.lock >> "${made}/tools.txt"
+then
+  tail -n 1 "${made}/tools.txt" | tee "${made}/verdict.txt"
+  exit 1
+fi
+
+step='shellcheck'
+# Every script of the repository's: what bin/ holds, and every .sh file git tracks.
+scripts=()
+while IFS= read -r script
+do
+  scripts+=("${script}")
+done < <(git ls-files -- bin '*.sh')
+version=$("${shellcheck}" --version | sed -n 's/^version: //p')
+if ! "${shellcheck}" -- "${scripts[@]}" > "${made}/shellcheck.txt" 2>&1
+then
+  cat "${made}/shellcheck.txt"
+  echo "gate: shellcheck: shellcheck ${version} finds what is above" | tee "${made}/verdict.txt"
+  exit 1
+fi
+rm -f "${made}/shellcheck.txt"
+echo "gate: shellcheck: ok: shellcheck ${version}, as kit.lock pins it, finds nothing in ${#scripts[@]} script(s)" \
+  >> "${made}/tools.txt"
+
 step='the tests'
 # The events go to a file and go test's status is kept, so the judge sees a run that stopped short. No test may
 # take the gate's whole budget: one that hangs is ended, and fails.
@@ -76,6 +117,7 @@ go test -json -timeout=3m -coverprofile="${made}/cover.out" ./... > "${made}/eve
 
 step='the judge'
 verdict=0
+tail -n 1 "${made}/tools.txt" | tee "${made}/verdict.txt"
 "${work}/judge" --profile="${made}/cover.out" --since="${since}" --status="${status}" < "${made}/events.json" \
-  | tee "${made}/verdict.txt" || verdict=$?
+  | tee -a "${made}/verdict.txt" || verdict=$?
 exit "${verdict}"
