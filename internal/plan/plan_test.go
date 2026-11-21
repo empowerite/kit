@@ -57,6 +57,23 @@ func TestHashChangesWhenAFactChanges(t *testing.T) {
 	}
 }
 
+func TestHashChangesWithWhatAStepWrites(t *testing.T) {
+	// An approval binds to the hash, so the hash must cover what is written, and not only where.
+	files, git := world()
+	write := func(text string) string {
+		return hash(t, Plan{Act: "tools add", Operations: []Operation{WriteFile(files, "/r", "kit.yml", []byte(text))}})
+	}
+	if write("a\n") == write("b\n") {
+		t.Error("two plans that write different bytes to kit.yml have one hash")
+	}
+	place := func(text, link string) string {
+		return hash(t, Plan{Act: "tools fetch", Operations: []Operation{Place(files, git, "/r", "env", []byte(text), link)}})
+	}
+	if place("a\n", "") == place("b\n", "") || place("", "/c/1") == place("", "/c/2") {
+		t.Error("two plans that place different things have one hash")
+	}
+}
+
 func TestHashRefusesAFactItCannotRead(t *testing.T) {
 	files, _ := world()
 	files.Fail["read /r/kit.yml"] = errors.New("broken")
