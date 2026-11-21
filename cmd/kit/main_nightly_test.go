@@ -47,7 +47,9 @@ func TestShellcheckPinnedFetchedAndRunForReal(t *testing.T) {
 	if result := plan.Apply(ctx, p, approval); result.Err != nil {
 		t.Fatal(result.Err)
 	}
-	env := append(os.Environ(), "XDG_CACHE_HOME="+t.TempDir())
+	// The cache is the test's own: on macOS kit's is under HOME, and on Linux under XDG_CACHE_HOME.
+	cache := t.TempDir()
+	env := append(os.Environ(), "XDG_CACHE_HOME="+cache, "HOME="+cache)
 	fetch := exec.Command(kit, "tools", "fetch")
 	fetch.Dir, fetch.Env = repo, env
 	if out, err := fetch.CombinedOutput(); err != nil {

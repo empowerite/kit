@@ -43,7 +43,7 @@ func hydrate(t *testing.T, d Desk) {
 func program(t *testing.T, d Desk) string {
 	t.Helper()
 	f := open(t, d).Lock.Tools["shellcheck"].Files["linux/amd64"]
-	return "/cache/kit/tools/" + strings.TrimPrefix(f.Digest, "sha256:") + "/shellcheck"
+	return "/cache/kit/tools/" + strings.TrimPrefix(f.ProgramDigest, "sha256:") + "/shellcheck"
 }
 
 func TestFetchNamesAFolderForItsDigestOnlyWhenWhole(t *testing.T) {
@@ -76,23 +76,80 @@ func TestFetchMakesAgainAPartLeftByAStoppedFetch(t *testing.T) {
 	hydrate(t, d)
 }
 
-func TestFetchPlacesALinkToAKeptCopyOfKit(t *testing.T) {
+func TestFetchPlacesKitInKitsFolderAndLinksToIt(t *testing.T) {
 	d := pinned(t)
 	hydrate(t, d)
-	kept := "/cache/kit/kit/" + strings.TrimPrefix(digestOf([]byte("kit itself")), "sha256:") + "/kit"
-	if got, _ := d.Files.ReadLink("/r/.kit/bin/shellcheck"); got != kept {
-		t.Errorf(".kit/bin/shellcheck leads to %q; want %q", got, kept)
+	if got, _ := d.Files.ReadLink("/r/.kit/bin/shellcheck"); got != "../kit" {
+		t.Errorf(".kit/bin/shellcheck leads to %q; want ../kit", got)
 	}
-	if got, _ := d.Files.Read(kept); string(got) != "kit itself" {
-		t.Errorf("the kept kit holds %q", got)
+	if got, _ := d.Files.Read("/r/.kit/kit"); string(got) != "kit itself" {
+		t.Errorf(".kit/kit holds %q", got)
 	}
-	// The kit that placed the link may go, as bin/gate's does: the link leads to the copy, which stays.
+	if info, _ := d.Files.Stat("/r/.kit/kit"); info.Mode().Perm() != 0o555 {
+		t.Errorf(".kit/kit is %v; want read-only and runnable", info.Mode())
+	}
+	// The kit that placed the link may go, as bin/gate's build does: the link leads to the copy in .kit/, which stays.
 	d.Files.Remove("/usr/bin/kit")
 	if got, _ := d.Files.Read("/r/.kit/bin/shellcheck"); string(got) != "kit itself" {
 		t.Errorf("through the link, the files hold %q; want kit", got)
 	}
-	if env, _ := d.Files.Read("/r/.kit/env"); string(env) != "PATH_add .kit/bin\nwatch_file kit.yml kit.lock\n" {
+	if env, _ := d.Files.Read("/r/.kit/env"); string(env) != "PATH_add bin\nwatch_file ../kit.yml ../kit.lock\n" {
 		t.Errorf(".kit/env holds %q", env)
+	}
+}
+
+func TestALinkStillLeadsToKitOnceTheCacheIsCleared(t *testing.T) {
+	// The design says a deleted cache only means kit fetches again: the link leads to kit, which fetches.
+	d := pinned(t)
+	hydrate(t, d)
+	dir := strings.TrimSuffix(program(t, d), "/shellcheck")
+	d.Files.Chmod(program(t, d), 0o644)
+	d.Files.Remove(program(t, d))
+	d.Files.Remove(dir)
+	if got, _ := d.Files.Read("/r/.kit/bin/shellcheck"); string(got) != "kit itself" {
+		t.Errorf("with the cache cleared, the link leads to %q; want kit", got)
+	}
+	if err := RunTool(ctx, d, "/r/.kit/bin/shellcheck", nil); err != nil {
+		t.Errorf("with the cache cleared, RunTool gave %v; want it to fetch again", err)
+	}
+}
+
+func TestTwoToolsFromOneArchiveAreEachKeptWhole(t *testing.T) {
+	d := pinned(t)
+	lock := open(t, d).Lock
+	second := lock.Tools["shellcheck"]
+	f := second.Files["linux/amd64"]
+	body := d.Downloads.(*forge).files[f.URL]
+	archive := tgz(t, map[string]string{"shellcheck-v0.11.0/shellcheck": "shellcheck 0.11.0 for linux/amd64", "shellcheck-v0.11.0/README.txt": "read me"})
+	if digestOf(archive) != digestOf(body) {
+		t.Fatal("the forge's archive is not the one this test rebuilds")
+	}
+	f.Program, f.ProgramDigest = "shellcheck-v0.11.0/README.txt", digestOf([]byte("read me"))
+	second.Files = map[Platform]LockedFile{"linux/amd64": f}
+	lock.Tools["readme"] = second
+	d.Files.Write("/r/kit.lock", lock.JSON(), 0o644)
+	hydrate(t, d)
+	for _, name := range []string{"shellcheck", "readme"} {
+		if _, err := Path(ctx, d, open(t, d), name); err != nil {
+			t.Errorf("Path(%s) gave %v", name, err)
+		}
+	}
+}
+
+func TestFetchTakesOutTheLinkOfAToolNoLongerPinned(t *testing.T) {
+	d := pinned(t)
+	hydrate(t, d)
+	d.Files.Write("/r/kit.lock", []byte("{\"tools\": {}}\n"), 0o644)
+	hydrate(t, d)
+	if _, err := d.Files.Stat("/r/.kit/bin/shellcheck"); err == nil {
+		t.Error("the link of a tool no longer pinned is still there")
+	}
+	if ignore, _ := d.Files.Read("/r/.kit/.gitignore"); strings.Contains(string(ignore), "bin/shellcheck") {
+		t.Errorf(".kit/.gitignore still names it: %q", ignore)
+	}
+	d.Files.(*fake.Files).Fail["read /r/.kit/.gitignore"] = errors.New("broken")
+	if _, err := Fetch(ctx, d, open(t, d)); err == nil {
+		t.Error("Fetch with .kit/.gitignore unreadable gave no error")
 	}
 }
 
@@ -155,7 +212,7 @@ func TestFetchSaysWhatStandsInItsWay(t *testing.T) {
 		}
 	}
 	e := pinned(t)
-	e.Files.(*fake.Files).Fail["stat /cache/kit/kit/"+strings.TrimPrefix(digestOf([]byte("kit itself")), "sha256:")] = errors.New("broken")
+	e.Files.(*fake.Files).Fail["stat "+strings.TrimSuffix(program(t, e), "/shellcheck")] = errors.New("broken")
 	p, _ := Fetch(ctx, e, open(t, e))
 	if r := plan.Hydrate(ctx, p); r.Err == nil {
 		t.Error("with the cache unreadable, hydrating the fetch gave no error")
@@ -307,14 +364,27 @@ func TestExecRunsTheCommandWithThePinnedToolsFirstOnThePath(t *testing.T) {
 		t.Fatalf("Exec gave the error %v", err)
 	}
 	got := d.Processes.(*fake.Processes).Replaced[0]
-	if got.Path != "shellcheck" || !reflect.DeepEqual(got.Args, []string{"x.sh"}) ||
-		!reflect.DeepEqual(got.Env, []string{"HOME=/home/a", "PATH=/r/.kit/bin:/usr/bin"}) {
+	path := strings.TrimPrefix(got.Env[1], "PATH=")
+	run := strings.Split(path, ":")[0]
+	if got.Path != "shellcheck" || !reflect.DeepEqual(got.Args, []string{"x.sh"}) || got.Env[0] != "HOME=/home/a" ||
+		!strings.HasPrefix(run, "/cache/kit/runs/") || !strings.HasSuffix(path, ":/usr/bin") {
 		t.Errorf("Exec ran %+v", got)
 	}
+	// The PATH leads straight to the checked program, so what the command runs needs no trust of its own.
+	if target, _ := d.Files.ReadLink(run + "/shellcheck"); target != program(t, d) {
+		t.Errorf("%s/shellcheck leads to %q; want the program", run, target)
+	}
+	Exec(ctx, d, open(t, d), []string{"x"})
 	d.Machine.(*fake.Machine).Env = []string{"HOME=/home/a"}
 	Exec(ctx, d, open(t, d), []string{"x"})
-	if got := d.Processes.(*fake.Processes).Replaced[1].Env; !reflect.DeepEqual(got, []string{"HOME=/home/a", "PATH=/r/.kit/bin"}) {
+	if got := d.Processes.(*fake.Processes).Replaced[2].Env; !reflect.DeepEqual(got, []string{"HOME=/home/a", "PATH=" + run}) {
 		t.Errorf("Exec with no PATH set ran with %q", got)
+	}
+	d.Files.Remove(run + "/shellcheck")
+	d.Files.Write(run+"/shellcheck", []byte("not a link"), 0o644)
+	d.Files.(*fake.Files).Fail["remove "+run+"/shellcheck"] = errors.New("broken")
+	if err := Exec(ctx, d, open(t, d), []string{"x"}); err == nil {
+		t.Error("Exec that cannot make its link gave no error")
 	}
 	d.Downloads = failingDownloads{}
 	d.Files = fake.NewFiles()
@@ -349,6 +419,17 @@ func TestToolsListsEachToolWhereItIsPinned(t *testing.T) {
 	if got, _ := Tools(d, open(t, d)); got[1].State != "fetched here, and not what kit.lock names" {
 		t.Errorf("Tools gave %+v; want shellcheck not what the lock names", got[1])
 	}
+	lock := open(t, d).Lock
+	l := lock.Tools["shellcheck"]
+	f := l.Files["darwin/arm64"]
+	f.Confirmed = []string{}
+	l.Files["darwin/arm64"] = f
+	lock.Tools["shellcheck"] = l
+	d.Files.Write("/r/kit.lock", lock.JSON(), 0o644)
+	if got, _ := Tools(d, open(t, d)); !strings.HasSuffix(got[1].State, "; nothing confirmed a file's digest but kit's own download") {
+		t.Errorf("Tools gave %+v; want it to say nothing confirmed a file", got[1])
+	}
+	d.Files.Write("/r/kit.lock", open(t, pinned(t)).Lock.JSON(), 0o644)
 	d.Files.Write("/r/go.mod", []byte("module x\n\ngo 1.27\n"), 0o644)
 	d.Machine.(*fake.Machine).Arch = "riscv64"
 	got, _ = Tools(d, open(t, d))
