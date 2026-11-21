@@ -188,3 +188,18 @@ func TestReleasesAndDownloadsGiveWhatTheyHold(t *testing.T) {
 		t.Error("Get of nothing gave no error")
 	}
 }
+
+func TestTheMachineAndTheReplacingSayWhatTheyAreSetTo(t *testing.T) {
+	m := &Machine{OS: "linux", Arch: "arm64", CacheDir: "/c", StateDir: "/s", Kit: "/k", Env: []string{"A=1"}, Argv: []string{"kit"}}
+	var _ ports.Machine = m
+	cache, _ := m.Cache()
+	state, _ := m.State()
+	kit, _ := m.Executable()
+	if m.Platform() != "linux/arm64" || cache != "/c" || state != "/s" || kit != "/k" || m.Environ()[0] != "A=1" || m.Args()[0] != "kit" {
+		t.Errorf("the machine said %s %s %s %s %v %v", m.Platform(), cache, state, kit, m.Environ(), m.Args())
+	}
+	p := &Processes{ReplaceErr: errors.New("x")}
+	if err := p.Replace(ports.Cmd{Path: "a"}); err == nil || len(p.Replaced) != 1 {
+		t.Errorf("Replace = %v, with %d kept", err, len(p.Replaced))
+	}
+}

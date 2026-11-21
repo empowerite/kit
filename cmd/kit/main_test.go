@@ -144,6 +144,22 @@ func TestRunSaysWhereKitsCommandsAreWrong(t *testing.T) {
 	}
 }
 
+func TestKitStartedByAToolsNameRunsTheTool(t *testing.T) {
+	// Outside a repository that pins it, the tool cannot run, and says so: what runs it for real is a nightly test.
+	args, was := os.Args, exit
+	defer func() { os.Args, exit = args, was }()
+	got := -1
+	os.Args, exit = []string{"/nowhere/.kit/bin/shellcheck", "--version"}, func(code int) { got = code }
+	main()
+	if got != 127 {
+		t.Errorf("main() as shellcheck exited %d; want 127", got)
+	}
+	var stderr bytes.Buffer
+	if code := tool("/nowhere/.kit/bin/shellcheck", nil, &stderr); code != 127 || !strings.HasPrefix(stderr.String(), "kit: shellcheck: kit.lock at /nowhere holds no shellcheck") {
+		t.Errorf("tool = %d, %q", code, stderr.String())
+	}
+}
+
 func TestMainExitsWithWhatRunGives(t *testing.T) {
 	args, was := os.Args, exit
 	defer func() { os.Args, exit = args, was }()

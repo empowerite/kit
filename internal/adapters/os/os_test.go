@@ -93,3 +93,64 @@ func TestExitGivesTheStatusOfAProgramThatRan(t *testing.T) {
 		t.Errorf("exit(a program that ran) = %d, %v; want its status and no error", code, err)
 	}
 }
+
+func TestReplaceSaysAProgramItCannotFindAndReplacesNothing(t *testing.T) {
+	// Neither program is there, so kit is not replaced and the test goes on; the nightly tier replaces kit for real.
+	dir := t.TempDir()
+	// An empty file that may be run is found on the PATH, and is no program the system can start.
+	must(t, Files{}.Write(dir+"/empty", nil, 0o755))
+	for _, c := range []ports.Cmd{{Path: "kit-no-such-program", Env: []string{"PATH=" + dir}}, {Path: dir + "/none"},
+		{Path: "empty", Env: []string{"PATH=" + dir}}} {
+		if err := (Processes{}).Replace(c); err == nil {
+			t.Errorf("Replace(%s) gave no error", c.Path)
+		}
+	}
+}
+
+func TestLookPathFindsAProgramOnTheGivenPath(t *testing.T) {
+	dir := t.TempDir()
+	must(t, Files{}.Write(dir+"/b/tool", []byte("#!/bin/sh\n"), 0o755))
+	must(t, Files{}.Write(dir+"/a/tool", []byte("not a program"), 0o644))
+	got, err := lookPath("tool", []string{"HOME=/h", "PATH=" + dir + "/none:" + dir + "/a:" + dir + "/b"})
+	if err != nil || got != dir+"/b/tool" {
+		t.Errorf("lookPath = %q, %v; want the program in b", got, err)
+	}
+	if _, err := lookPath("tool", nil); err == nil || !strings.Contains(err.Error(), "no tool on the PATH") {
+		t.Errorf("lookPath with no PATH gave %v", err)
+	}
+}
+
+func TestMachineSaysWhereKitRuns(t *testing.T) {
+	m := Machine{}
+	var _ ports.Machine = m
+	if p := m.Platform(); !strings.Contains(p, "/") {
+		t.Errorf("Platform = %q", p)
+	}
+	t.Setenv("XDG_STATE_HOME", "/state")
+	if s, err := m.State(); s != "/state/kit" || err != nil {
+		t.Errorf("State = %q, %v; want /state/kit", s, err)
+	}
+	t.Setenv("XDG_STATE_HOME", "")
+	t.Setenv("HOME", "/home/a")
+	if s, _ := m.State(); s != "/home/a/.local/state/kit" {
+		t.Errorf("State = %q; want under HOME", s)
+	}
+	t.Setenv("XDG_CACHE_HOME", "/cache")
+	if c, err := m.Cache(); !strings.HasSuffix(c, "/kit") || err != nil {
+		t.Errorf("Cache = %q, %v", c, err)
+	}
+	t.Setenv("HOME", "")
+	t.Setenv("XDG_CACHE_HOME", "")
+	if _, err := m.Cache(); err == nil {
+		t.Error("Cache with no HOME gave no error")
+	}
+	if _, err := m.State(); err == nil {
+		t.Error("State with no HOME gave no error")
+	}
+	if kit, err := m.Executable(); kit == "" || err != nil {
+		t.Errorf("Executable = %q, %v", kit, err)
+	}
+	if len(m.Environ()) == 0 || len(m.Args()) == 0 {
+		t.Error("Environ or Args gave nothing")
+	}
+}

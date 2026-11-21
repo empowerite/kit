@@ -247,16 +247,38 @@ func (p *Presence) Prove(_ context.Context, reason, _ string) (ports.Proof, erro
 	return p.Proof, p.Err
 }
 
-// Processes runs nothing: it keeps each program it is asked to run, and answers as Answer says.
+// Processes runs nothing: it keeps each program it is asked to run, and answers as Answer says. A program kit is
+// replaced by is kept in Replaced, and Replace gives ReplaceErr.
 type Processes struct {
-	Runs   []ports.Cmd
-	Answer func(c ports.Cmd) (int, error)
+	Runs       []ports.Cmd
+	Answer     func(c ports.Cmd) (int, error)
+	Replaced   []ports.Cmd
+	ReplaceErr error
 }
 
 func (p *Processes) Run(_ context.Context, c ports.Cmd) (int, error) {
 	p.Runs = append(p.Runs, c)
 	return p.Answer(c)
 }
+
+func (p *Processes) Replace(c ports.Cmd) error {
+	p.Replaced = append(p.Replaced, c)
+	return p.ReplaceErr
+}
+
+// Machine is a machine of the test's making.
+type Machine struct {
+	OS, Arch, CacheDir, StateDir, Kit string
+	Env, Argv                         []string
+	Err                               error // what Cache, State, and Executable give
+}
+
+func (m *Machine) Platform() string            { return m.OS + "/" + m.Arch }
+func (m *Machine) Cache() (string, error)      { return m.CacheDir, m.Err }
+func (m *Machine) State() (string, error)      { return m.StateDir, m.Err }
+func (m *Machine) Executable() (string, error) { return m.Kit, m.Err }
+func (m *Machine) Environ() []string           { return m.Env }
+func (m *Machine) Args() []string              { return m.Argv }
 
 // Releases is a forge's releases, in memory: each file by its repository, tag, and name.
 type Releases struct {

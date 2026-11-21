@@ -9,7 +9,9 @@ import (
 	"io"
 	"maps"
 	"os"
+	"path/filepath"
 	"runtime/debug"
+	"strings"
 
 	"github.com/empowerite/kit/internal/adapters/git"
 	"github.com/empowerite/kit/internal/adapters/github"
@@ -55,6 +57,8 @@ func desk() (toolchain.Desk, error) {
 		Releases:  github.NewReleases(token, nil),
 		Downloads: github.NewDownloads(nil),
 		Presence:  noPresence{},
+		Machine:   kitos.Machine{},
+		Processes: kitos.Processes{},
 	}, err
 }
 
@@ -68,7 +72,23 @@ func (noPresence) Prove(context.Context, string, string) (ports.Proof, error) {
 }
 
 func main() {
+	if named := filepath.Base(os.Args[0]); !strings.HasPrefix(named, "kit") {
+		// kit started by a tool's name, through a link in .kit/bin.
+		exit(tool(os.Args[0], os.Args[1:], os.Stderr))
+		return
+	}
 	exit(run(os.Args[1:], os.Stdout, os.Stderr))
+}
+
+// tool runs the tool kit was started as, in kit's place, once it holds to the lock. Run so, kit ends and the tool
+// goes on in its process, so tool returns only where the tool could not run, and says why.
+func tool(argv0 string, args []string, stderr io.Writer) int {
+	d, err := desk()
+	if err == nil {
+		err = toolchain.RunTool(context.Background(), d, argv0, args)
+	}
+	fmt.Fprintf(stderr, "kit: %s: %v\n", filepath.Base(argv0), err)
+	return 127
 }
 
 // run does what the words after kit ask, and gives the exit status.

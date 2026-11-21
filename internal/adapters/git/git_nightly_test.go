@@ -28,6 +28,8 @@ func (machine) Run(ctx context.Context, c ports.Cmd) (int, error) {
 	return 0, nil
 }
 
+func (machine) Replace(ports.Cmd) error { return errors.New("not here") }
+
 func TestGitFindsTheRootAndWhatItTracksForReal(t *testing.T) {
 	dir, _ := filepath.EvalSymlinks(t.TempDir())
 	for _, args := range [][]string{{"init", "-q", dir}, {"-C", dir, "worktree", "add", "-q", "--orphan", "-b", "w", dir + "/wt"}} {

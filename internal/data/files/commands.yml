@@ -43,3 +43,44 @@ commands:
         help: pin a file that neither GitHub nor the tool confirms, on kit's own download alone
       - name: plan
         help: print the plan, and change nothing
+
+  - words: [tools]
+    summary: list the tools this repository's work runs with
+    help: |
+      Lists each tool kit.yml pins, and Go, which go.mod's toolchain line pins: its version, where it is pinned, and
+      whether it is fetched on this machine and holds to kit.lock.
+
+  - words: [tools, fetch]
+    summary: fetch the pinned tools into the cache, and link them in .kit/bin
+    help: |
+      Fetches each tool kit.lock holds, for this machine's platform, into kit's cache, holding each file and each
+      program to its digest in the lock. It places a link in .kit/bin for each tool, and .kit/env for direnv, each
+      named in .kit/.gitignore. It changes nothing that git sees, so it asks no approval. Every command that runs a
+      tool fetches first.
+
+  - words: [tools, path]
+    summary: print where a pinned tool's program is
+    help: |
+      Prints the path of a tool's program in kit's cache, once it is fetched and its digest is the one kit.lock names.
+    args:
+      - name: tool
+
+  - words: [exec]
+    summary: run a command with the pinned tools first on the PATH
+    help: |
+      Runs a command in kit's place, with the pinned tools fetched, and .kit/bin first on the PATH. Each tool there
+      is checked against kit.lock each time it runs. Give the command after --, as kit exec -- shellcheck bin/gate.
+    args:
+      - name: command
+        many: true
+
+  - words: [env]
+    summary: print the environment that puts the pinned tools on the PATH
+    help: |
+      Prints what a shell reads to have the pinned tools first on its PATH: bash's and zsh's export line, or direnv's
+      own words (PATH_add, and watch_file for kit.yml and kit.lock, so that direnv loads it again when a pin
+      changes). It fetches first.
+    options:
+      - name: shell
+        value: name
+        help: bash, zsh, or direnv; bash where it is not given

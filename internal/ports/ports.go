@@ -72,6 +72,25 @@ type Cmd struct {
 type Processes interface {
 	// Run runs a program to its end, and gives its exit status. An error is a program that could not be run.
 	Run(ctx context.Context, c Cmd) (int, error)
+	// Replace runs a program in kit's place, with kit's own streams: kit ends, and the program goes on as kit's
+	// process. A name with no slash is looked for on the PATH that c.Env holds. It returns only with an error.
+	Replace(c Cmd) error
+}
+
+// Machine is what kit knows of the machine it runs on.
+type Machine interface {
+	// Platform gives the machine's system and machine, as "darwin/arm64".
+	Platform() string
+	// Cache gives the folder of kit's cache, which is the person's, one for the machine.
+	Cache() (string, error)
+	// State gives the folder of what kit keeps of the person's, such as what they trust.
+	State() (string, error)
+	// Executable gives the path of the kit that runs.
+	Executable() (string, error)
+	// Environ gives kit's environment, as NAME=value.
+	Environ() []string
+	// Args gives the words kit was started with, its own name first.
+	Args() []string
 }
 
 // Asset is one file of a release: where it is downloaded from, and the digest the forge keeps of it, as
