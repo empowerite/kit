@@ -363,7 +363,7 @@ func TestEnvPrintsWhatEachShellReads(t *testing.T) {
 
 func TestExecRunsTheCommandWithThePinnedToolsFirstOnThePath(t *testing.T) {
 	d := pinned(t)
-	if err := Exec(ctx, d, open(t, d), []string{"shellcheck", "x.sh"}); err != nil {
+	if err := Exec(ctx, d, open(t, d), []string{"shellcheck", "x.sh"}, nil); err != nil {
 		t.Fatalf("Exec gave the error %v", err)
 	}
 	got := d.Processes.(*fake.Processes).Replaced[0]
@@ -377,27 +377,27 @@ func TestExecRunsTheCommandWithThePinnedToolsFirstOnThePath(t *testing.T) {
 	if target, _ := d.Files.ReadLink(run + "/shellcheck"); target != program(t, d) {
 		t.Errorf("%s/shellcheck leads to %q; want the program", run, target)
 	}
-	Exec(ctx, d, open(t, d), []string{"x"})
+	Exec(ctx, d, open(t, d), []string{"x"}, nil)
 	d.Machine.(*fake.Machine).Env = []string{"HOME=/home/a"}
-	Exec(ctx, d, open(t, d), []string{"x"})
+	Exec(ctx, d, open(t, d), []string{"x"}, nil)
 	if got := d.Processes.(*fake.Processes).Replaced[2].Env; !reflect.DeepEqual(got, []string{"HOME=/home/a", "PATH=" + run}) {
 		t.Errorf("Exec with no PATH set ran with %q", got)
 	}
 	d.Files.Remove(run + "/shellcheck")
 	d.Files.Write(run+"/shellcheck", []byte("not a link"), 0o644)
 	d.Files.(*fake.Files).Fail["remove "+run+"/shellcheck"] = errors.New("broken")
-	if err := Exec(ctx, d, open(t, d), []string{"x"}); err == nil {
+	if err := Exec(ctx, d, open(t, d), []string{"x"}, nil); err == nil {
 		t.Error("Exec that cannot make its link gave no error")
 	}
 	d.Downloads = failingDownloads{}
 	d.Files = fake.NewFiles()
 	d.Files.Write("/usr/bin/kit", []byte("kit"), 0o755)
 	d.Files.Write("/r/kit.lock", open(t, pinned(t)).Lock.JSON(), 0o644)
-	if err := Exec(ctx, d, open(t, d), []string{"x"}); err == nil {
+	if err := Exec(ctx, d, open(t, d), []string{"x"}, nil); err == nil {
 		t.Error("Exec with nothing fetched and the forge away gave no error")
 	}
 	d.Machine.(*fake.Machine).Err = errors.New("no home")
-	if err := Exec(ctx, d, open(t, d), []string{"x"}); err == nil {
+	if err := Exec(ctx, d, open(t, d), []string{"x"}, nil); err == nil {
 		t.Error("Exec with no cache gave no error")
 	}
 }

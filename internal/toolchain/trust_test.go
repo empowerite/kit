@@ -31,7 +31,7 @@ func TestNothingRunsInACloneThePersonHasNotTrusted(t *testing.T) {
 	if err := RunTool(ctx, d, "/r/.kit/bin/shellcheck", nil); err == nil || !strings.Contains(err.Error(), want) {
 		t.Errorf("RunTool gave %v; want %q", err, want)
 	}
-	if err := Exec(ctx, d, open(t, d), []string{"x"}); err == nil || !strings.Contains(err.Error(), want) {
+	if err := Exec(ctx, d, open(t, d), []string{"x"}, nil); err == nil || !strings.Contains(err.Error(), want) {
 		t.Errorf("Exec gave %v; want %q", err, want)
 	}
 	trust(t, d)

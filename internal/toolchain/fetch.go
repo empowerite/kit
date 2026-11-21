@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"maps"
 	"path"
@@ -239,8 +240,16 @@ func RunTool(ctx context.Context, d Desk, argv0 string, args []string) error {
 // Exec runs a command in kit's place, with the pinned tools fetched and checked, and first on the PATH. The PATH leads
 // straight to the programs, each checked against the lock as Exec starts, through a folder of links the cache keeps
 // for this lock: the command, and what it runs, need no trust of their own, so a trust given for this run alone
-// reaches them too.
-func Exec(ctx context.Context, d Desk, r Repo, argv []string) error {
+// reaches them too. Where mise is in use, it runs the command through mise exec, and first says on said what the
+// check finds of mise's lock: kit informs, and does not block.
+func Exec(ctx context.Context, d Desk, r Repo, argv []string, said io.Writer) error {
+	ms, err := Detect(d.Files, r.Root)
+	if err != nil {
+		return err
+	}
+	if slices.ContainsFunc(ms, func(m Manager) bool { return m.Name == "mise" }) {
+		return throughMise(ctx, d, r, argv, said)
+	}
 	cache, err := d.Machine.Cache()
 	if err != nil {
 		return err
@@ -330,6 +339,19 @@ func Tools(d Desk, r Repo) ([]Listed, error) {
 	cache, err := d.Machine.Cache()
 	if err != nil {
 		return nil, err
+	}
+	ms, _ := Detect(d.Files, r.Root)
+	for _, m := range ms {
+		if m.Name == "mise" {
+			text, _ := read(d.Files, r.Root+"/"+m.File)
+			tools, err := miseTools(text)
+			if err != nil {
+				return nil, err
+			}
+			for name, version := range tools {
+				listed = append(listed, Listed{name, version, m.File, "mise fetches it"})
+			}
+		}
 	}
 	for _, pin := range r.Pins {
 		state := "not fetched here"

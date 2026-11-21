@@ -9,3 +9,5 @@ require (
 	go.yaml.in/yaml/v4 v4.0.0
 	golang.org/x/text v0.14.0
 )
+
+require github.com/BurntSushi/toml v1.6.0 // indirect

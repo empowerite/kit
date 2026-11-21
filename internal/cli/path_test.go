@@ -180,6 +180,26 @@ func TestTrustShowsWhatItCoversAndRecordsIt(t *testing.T) {
 	}
 }
 
+func TestToolsCheckSaysEachFindingAndItsFix(t *testing.T) {
+	d := pinnedDesk(t)
+	if code, out, _ := runTools(t, d, "tools", "check"); code != 0 || !strings.HasPrefix(out, "kit tools check: ok") {
+		t.Errorf("tools check = %d, %q", code, out)
+	}
+	d.Files.Write("/r/kit.lock", []byte("{\"tools\": {}}\n"), 0o644)
+	code, out, _ := runTools(t, d, "tools", "check")
+	if code != 1 || out != "kit.lock: kit.lock holds no shellcheck\n  why  kit.yml pins it, and no digest says which bytes to run\n  fix  kit tools lock\n" {
+		t.Errorf("tools check = %d, %q", code, out)
+	}
+	code, out, _ = runTools(t, d, "tools", "check", "--json")
+	if code != 1 || !strings.Contains(out, `"fix": "kit tools lock"`) {
+		t.Errorf("tools check --json = %d, %q", code, out)
+	}
+	d.Git = &fake.Git{Err: errors.New("not a clone")}
+	if code, _, err := runTools(t, d, "tools", "check"); code != 1 || err != "kit: not a clone\n" {
+		t.Errorf("tools check outside a clone = %d, %q", code, err)
+	}
+}
+
 func TestTrustOfACloneThatHoldsNothingKitWouldRun(t *testing.T) {
 	d := toolsDesk(t, &fake.Presence{})
 	d.Machine = &fake.Machine{OS: "linux", Arch: "amd64", StateDir: "/state/kit"}
