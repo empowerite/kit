@@ -15,9 +15,19 @@ import (
 	"github.com/empowerite/kit/internal/ports"
 )
 
-// direnv is what .kit/env holds, and kit env --shell=direnv prints: direnv's own words, with kit.yml and kit.lock
-// watched, so that direnv loads the environment again when a pin changes.
+// direnv is what kit env --shell=direnv prints, for an .envrc at the root: direnv's own words, with kit.yml and
+// kit.lock watched, so that direnv loads the environment again when a pin changes.
 const direnv = "PATH_add .kit/bin\nwatch_file kit.yml kit.lock\n"
+
+// kitEnv is what .kit/env holds: the same words, for direnv's source_env .kit/env, which reads them from .kit/.
+const kitEnv = "PATH_add bin\nwatch_file ../kit.yml ../kit.lock\n"
+
+// programOf gives where the cache keeps a locked file's program: in a folder named for the program's own digest, so
+// that two tools from one archive are each kept whole.
+func programOf(cache string, f LockedFile) (dir, program string) {
+	dir = cache + "/tools/" + hexOf(f.ProgramDigest)
+	return dir, dir + "/" + path.Base(f.Program)
+}
 
 // hexOf gives a digest's hex, without its "sha256:".
 func hexOf(digest string) string { return strings.TrimPrefix(digest, "sha256:") }
@@ -31,13 +41,9 @@ func whole(files ports.Files, dir string) (bool, error) {
 	return err == nil, err
 }
 
-// fill makes a folder of the cache: it writes the file into the folder's .part, and names the folder for its digest
-// only once the file is whole. A .part left by a fetch that stopped is made again.
+// fill makes a folder of the cache, which is not there yet: it writes the file into the folder's .part, and names the
+// folder for its digest only once the file is whole. A .part left by a fetch that stopped is made again.
 func fill(files ports.Files, dir, name string, data []byte) error {
-	ready, err := whole(files, dir)
-	if err != nil || ready {
-		return err
-	}
 	part := dir + ".part"
 	for _, p := range []string{part + "/" + name, part} {
 		if err := files.Remove(p); err != nil && !errors.Is(err, fs.ErrNotExist) {
@@ -55,22 +61,6 @@ func facts(files ports.Files, dir string) (string, error) {
 	ready, err := whole(files, dir)
 	return fmt.Sprintf("%s whole %v", dir, ready), err
 }
-
-// keep keeps a copy of kit in the cache, by its own digest, for the links of .kit/bin to lead to: the kit that
-// placed them may be gone, as a build of bin/gate's is.
-type keep struct {
-	files ports.Files
-	dir   string
-	kit   []byte
-}
-
-func (k keep) Step() plan.Step {
-	return plan.Step{System: "cache", Does: "keep this kit in the cache, at " + k.dir, Undoable: true, Hydrates: true}
-}
-
-func (k keep) Facts(context.Context) (string, error) { return facts(k.files, k.dir) }
-
-func (k keep) Apply(context.Context) error { return fill(k.files, k.dir, "kit", k.kit) }
 
 // fetch fetches a tool's program for this platform into the cache, holding the file and the program to the lock.
 type fetch struct {
@@ -123,8 +113,10 @@ func file(d Desk, r Repo, name string) (LockedFile, error) {
 	return f, nil
 }
 
-// Fetch plans to fetch every tool the lock holds for this platform into the cache, to place a link in .kit/bin for
-// each, and .kit/env for direnv. It changes nothing that git sees, so it is hydrated, with no approval.
+// Fetch plans to fetch every tool the lock holds for this platform into the cache; to place a copy of kit at
+// .kit/kit, a link in .kit/bin to it for each tool, and .kit/env for direnv; and to take out the link of a tool the
+// lock no longer holds. The links lead into .kit/, not the cache, so a cache that is cleared costs a fetch and never
+// a link that leads nowhere. It changes nothing that git sees, so it is hydrated, with no approval.
 func Fetch(ctx context.Context, d Desk, r Repo) (plan.Plan, error) {
 	cache, err := d.Machine.Cache()
 	if err != nil {
@@ -135,20 +127,28 @@ func Fetch(ctx context.Context, d Desk, r Repo) (plan.Plan, error) {
 	if err == nil {
 		body, err = d.Files.Read(kit)
 	}
+	var placed []string
+	if err == nil {
+		placed, err = plan.Placed(d.Files, r.Root)
+	}
 	if err != nil {
 		return plan.Plan{}, err
 	}
-	kept := cache + "/kit/" + hexOf(digestOf(body))
-	ops := []plan.Operation{keep{d.Files, kept, body}}
+	ops := []plan.Operation{plan.PlaceProgram(d.Files, d.Git, r.Root, "kit", body)}
 	for _, name := range slices.Sorted(maps.Keys(r.Lock.Tools)) {
 		f, err := file(d, r, name)
 		if err != nil {
 			return plan.Plan{}, err
 		}
-		ops = append(ops, fetch{d, name, f, cache + "/tools/" + hexOf(f.Digest)},
-			plan.Place(d.Files, d.Git, r.Root, "bin/"+name, nil, kept+"/kit"))
+		dir, _ := programOf(cache, f)
+		ops = append(ops, fetch{d, name, f, dir}, plan.Place(d.Files, d.Git, r.Root, "bin/"+name, nil, "../kit"))
 	}
-	ops = append(ops, plan.Place(d.Files, d.Git, r.Root, "env", []byte(direnv), ""))
+	for _, name := range placed {
+		if tool, ok := strings.CutPrefix(name, "bin/"); ok && r.Lock.Tools[tool].Version == "" {
+			ops = append(ops, plan.Unplace(d.Files, d.Git, r.Root, name))
+		}
+	}
+	ops = append(ops, plan.Place(d.Files, d.Git, r.Root, "env", []byte(kitEnv), ""))
 	return plan.Plan{Act: "tools fetch", Operations: ops}, nil
 }
 
@@ -163,13 +163,15 @@ func checked(ctx context.Context, d Desk, r Repo, name string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	dir := cache + "/tools/" + hexOf(f.Digest)
-	program := dir + "/" + path.Base(f.Program)
+	dir, program := programOf(cache, f)
 	body, err := d.Files.Read(program)
 	if errors.Is(err, fs.ErrNotExist) {
-		p, _ := Fetch(ctx, d, r)
-		if result := plan.Hydrate(ctx, p); result.Err != nil {
-			return "", result.Err
+		var p plan.Plan
+		if p, err = Fetch(ctx, d, r); err == nil {
+			err = plan.Hydrate(ctx, p).Err
+		}
+		if err != nil {
+			return "", err
 		}
 		body, err = d.Files.Read(program)
 	}
@@ -221,16 +223,37 @@ func RunTool(ctx context.Context, d Desk, argv0 string, args []string) error {
 	return d.Processes.Replace(ports.Cmd{Path: program, Args: args, Env: d.Machine.Environ()})
 }
 
-// Exec runs a command in kit's place, with the pinned tools fetched, and first on the PATH.
+// Exec runs a command in kit's place, with the pinned tools fetched and checked, and first on the PATH. The PATH leads
+// straight to the programs, each checked against the lock as Exec starts, through a folder of links the cache keeps
+// for this lock: the command, and what it runs, need no trust of their own, so a trust given for this run alone
+// reaches them too.
 func Exec(ctx context.Context, d Desk, r Repo, argv []string) error {
-	p, err := Fetch(ctx, d, r)
+	cache, err := d.Machine.Cache()
 	if err != nil {
 		return err
 	}
-	if result := plan.Hydrate(ctx, p); result.Err != nil {
-		return result.Err
+	run := cache + "/runs/" + hexOf(digestOf(append(r.Lock.JSON(), d.Machine.Platform()...)))
+	for _, name := range slices.Sorted(maps.Keys(r.Lock.Tools)) {
+		program, err := checked(ctx, d, r, name)
+		if err == nil {
+			err = linked(d.Files, program, run+"/"+name)
+		}
+		if err != nil {
+			return err
+		}
 	}
-	return d.Processes.Replace(ports.Cmd{Path: argv[0], Args: argv[1:], Env: withPath(d.Machine.Environ(), r.Root+"/.kit/bin")})
+	return d.Processes.Replace(ports.Cmd{Path: argv[0], Args: argv[1:], Env: withPath(d.Machine.Environ(), run)})
+}
+
+// linked makes path a link to target, where it is not one already.
+func linked(files ports.Files, target, path string) error {
+	if now, err := files.ReadLink(path); err == nil && now == target {
+		return nil
+	}
+	if err := files.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+	return files.Link(target, path)
 }
 
 // pathOf gives the folders of the PATH an environment holds.
@@ -298,7 +321,8 @@ func Tools(d Desk, r Repo) ([]Listed, error) {
 	for _, pin := range r.Pins {
 		state := "not fetched here"
 		f, err := file(d, r, pin.Name)
-		switch body, readErr := d.Files.Read(cache + "/tools/" + hexOf(f.Digest) + "/" + path.Base(f.Program)); {
+		_, program := programOf(cache, f)
+		switch body, readErr := d.Files.Read(program); {
 		case err != nil:
 			state = strings.Replace(err.Error(), "of "+pin.Name+" ", "of it ", 1)
 		case readErr != nil:
@@ -306,6 +330,12 @@ func Tools(d Desk, r Repo) ([]Listed, error) {
 			state = "fetched here, and checked"
 		default:
 			state = "fetched here, and not what kit.lock names"
+		}
+		for _, f := range r.Lock.Tools[pin.Name].Files {
+			if len(f.Confirmed) == 0 {
+				state += "; nothing confirmed a file's digest but kit's own download"
+				break
+			}
 		}
 		listed = append(listed, Listed{pin.Name, pin.Version, "kit.yml", state})
 	}

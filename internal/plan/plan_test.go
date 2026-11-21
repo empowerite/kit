@@ -76,6 +76,7 @@ func TestHashChangesWithWhatAStepWrites(t *testing.T) {
 
 func TestHashRefusesAFactItCannotRead(t *testing.T) {
 	files, _ := world()
+	files.Write("/r/kit.yml", []byte("x\n"), 0o644)
 	files.Fail["read /r/kit.yml"] = errors.New("broken")
 	p := Plan{Act: "tools add", Operations: []Operation{WriteFile(files, "/r", "kit.yml", nil)}}
 	if _, err := p.Hash(ctx); err == nil || !strings.Contains(err.Error(), "broken") {
@@ -235,19 +236,30 @@ func TestPlaceRefusesAFileGitTracks(t *testing.T) {
 	}
 }
 
+// placedEnv gives files and a git where kit has placed .kit/env already.
+func placedEnv(t *testing.T) (*fake.Files, *fake.Git) {
+	t.Helper()
+	files, git := world()
+	if r := Hydrate(ctx, Plan{Act: "tools fetch", Operations: []Operation{Place(files, git, "/r", "env", []byte("old\n"), "")}}); r.Err != nil {
+		t.Fatal(r.Err)
+	}
+	return files, git
+}
+
 func TestPlaceSaysWhereItFails(t *testing.T) {
 	broken := errors.New("broken")
 	for _, act := range []string{"write /r/.kit/env", "write /r/.kit/.gitignore", "remove /r/.kit/env", "link /r/.kit/env"} {
-		files, git := world()
-		if err := files.Write("/r/.kit/env", []byte("old\n"), 0o444); err != nil {
-			t.Fatal(err)
-		}
+		files, git := placedEnv(t)
 		files.Fail[act] = broken
 		link := ""
 		if strings.HasPrefix(act, "link") {
 			link = "/c/kit"
 		}
-		r := Hydrate(ctx, Plan{Act: "tools fetch", Operations: []Operation{Place(files, git, "/r", "env", []byte("new\n"), link)}})
+		name := "env"
+		if strings.HasSuffix(act, ".gitignore") {
+			name = "other"
+		}
+		r := Hydrate(ctx, Plan{Act: "tools fetch", Operations: []Operation{Place(files, git, "/r", name, []byte("new\n"), link)}})
 		if !errors.Is(r.Err, broken) {
 			t.Errorf("with %s failing, Hydrate gave %v; want broken", act, r.Err)
 		}
@@ -255,14 +267,21 @@ func TestPlaceSaysWhereItFails(t *testing.T) {
 }
 
 func TestPlaceSaysWhereItFailsToReplaceAFileWithALink(t *testing.T) {
-	files, git := world()
-	if err := files.Write("/r/.kit/env", []byte("old\n"), 0o444); err != nil {
-		t.Fatal(err)
-	}
+	files, git := placedEnv(t)
 	files.Fail["remove /r/.kit/env"] = errors.New("broken")
 	r := Hydrate(ctx, Plan{Act: "tools fetch", Operations: []Operation{Place(files, git, "/r", "env", nil, "/c/kit")}})
 	if r.Err == nil || r.Err.Error() != "broken" {
 		t.Errorf("Hydrate gave %v; want broken", r.Err)
+	}
+}
+
+func TestFactsSayWhatTheyCannotRead(t *testing.T) {
+	for _, act := range []string{"stat /r/.kit/env", "read /r/.kit/.gitignore", "stat /r/.kit/.gitignore"} {
+		files, git := placedEnv(t)
+		files.Fail[act] = errors.New("broken")
+		if _, err := Place(files, git, "/r", "env", nil, "").Facts(ctx); err == nil {
+			t.Errorf("with %s failing, Facts gave no error", act)
+		}
 	}
 }
 
@@ -342,6 +361,7 @@ func TestPrintShowsThePlanAndItsJSON(t *testing.T) {
 	if !strings.Contains(string(encoded), `"system":"files","does":"write kit.yml","undoable":true`) {
 		t.Errorf("the plan as JSON is %s", encoded)
 	}
+	files.Write("/r/kit.yml", []byte("x\n"), 0o644)
 	files.Fail["read /r/kit.yml"] = errors.New("broken")
 	if _, err := p.Doc(ctx); err == nil {
 		t.Error("Doc gave no error for a plan whose facts cannot be read")
@@ -357,5 +377,68 @@ func TestPrintResultSaysWhatIsDoneAndWhatIsNot(t *testing.T) {
 	want := "  done      files  write /r/kit.yml\n  not done  files  write /r/kit.lock\nkit: disk full\n"
 	if out.String() != want {
 		t.Errorf("PrintResult gave %q; want %q", out.String(), want)
+	}
+}
+
+func TestPlaceRefusesAFileKitDidNotPlace(t *testing.T) {
+	// A file under .kit/ that git does not track, and that .kit/.gitignore does not name, is not kit's: kit neither
+	// reads it as a link nor writes over it.
+	for _, link := range []string{"", "/c/kit"} {
+		files, git := world()
+		files.Write("/r/.kit/bin/x", []byte("someone's own\n"), 0o755)
+		p := Plan{Act: "tools fetch", Operations: []Operation{Place(files, git, "/r", "bin/x", []byte("kit's\n"), link)}}
+		if _, err := p.Hash(ctx); err == nil || err.Error() != ".kit/bin/x is not one kit placed: kit does not place over it" {
+			t.Errorf("with link %q, Hash gave %v; want a refusal that names it", link, err)
+		}
+	}
+}
+
+func TestPlaceRefusesANameThatLeavesKitsFolder(t *testing.T) {
+	files, git := world()
+	for _, name := range []string{"../../.git/hooks/pre-commit", "/etc/x", "bin/../../x", "", "."} {
+		p := Plan{Act: "tools fetch", Operations: []Operation{Place(files, git, "/r", name, nil, "/c/kit")}}
+		if _, err := p.Hash(ctx); err == nil || !strings.Contains(err.Error(), "is not a path below .kit/") {
+			t.Errorf("Place(%q) gave %v; want a refusal", name, err)
+		}
+	}
+}
+
+func TestPlaceProgramPlacesARunnableCopy(t *testing.T) {
+	files, git := world()
+	p := Plan{Act: "tools fetch", Operations: []Operation{PlaceProgram(files, git, "/r", "kit", []byte("kit itself"))}}
+	if r := Hydrate(ctx, p); r.Err != nil {
+		t.Fatal(r.Err)
+	}
+	if info, _ := files.Stat("/r/.kit/kit"); info.Mode().Perm() != 0o555 {
+		t.Errorf(".kit/kit is %v; want read-only and runnable", info.Mode())
+	}
+	if got := p.Operations[0].Step().Does; got != "place .kit/kit, read-only and runnable" {
+		t.Errorf("the step says %q", got)
+	}
+}
+
+func TestPlacedGivesWhatKitPlaced(t *testing.T) {
+	files, git := world()
+	if got, err := Placed(files, "/r"); err != nil || len(got) != 0 {
+		t.Errorf("Placed with nothing placed = %q, %v", got, err)
+	}
+	Hydrate(ctx, Plan{Act: "tools fetch", Operations: []Operation{Place(files, git, "/r", "bin/b", nil, "/c"), Place(files, git, "/r", "env", nil, "")}})
+	if got, _ := Placed(files, "/r"); strings.Join(got, " ") != "bin/b env" {
+		t.Errorf("Placed = %q; want bin/b and env", got)
+	}
+}
+
+func TestAStepSaysWhatItChangesInFull(t *testing.T) {
+	files, _ := world()
+	p := Plan{Act: "tools add", Operations: []Operation{WriteFile(files, "/r", "kit.lock", []byte("x"), "shellcheck 0.11.0", "  linux/amd64: https://x")}}
+	d, _ := p.Doc(ctx)
+	var out bytes.Buffer
+	Print(&out, d)
+	if want := "  files  write kit.lock\n           shellcheck 0.11.0\n             linux/amd64: https://x\n"; !strings.HasSuffix(out.String(), want) {
+		t.Errorf("Print gave %q; want it to end %q", out.String(), want)
+	}
+	other := Plan{Act: "tools add", Operations: []Operation{WriteFile(files, "/r", "kit.lock", []byte("x"), "shellcheck 0.12.0")}}
+	if hash(t, p) == hash(t, other) {
+		t.Error("two plans that say different things have one hash")
 	}
 }

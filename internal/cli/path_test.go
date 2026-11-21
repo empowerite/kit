@@ -44,7 +44,7 @@ func TestToolsListsTheTools(t *testing.T) {
 func TestToolsFetchFetchesAndSaysWhatItDid(t *testing.T) {
 	d := pinnedDesk(t)
 	code, out, _ := runTools(t, d, "tools", "fetch")
-	if code != 0 || !strings.Contains(out, "  done      .kit   place .kit/bin/shellcheck, a link to /cache/kit/kit/") {
+	if code != 0 || !strings.Contains(out, "  done      .kit   place .kit/bin/shellcheck, a link to ../kit\n") {
 		t.Errorf("tools fetch = %d, %q", code, out)
 	}
 	code, out, _ = runTools(t, d, "tools", "fetch", "--json")
