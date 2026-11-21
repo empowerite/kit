@@ -1,0 +1,26 @@
+# tools.yml - the tools kit knows how to fetch: where each one's releases are, and which file is for each platform
+#
+# In each entry, {version} is the tool's version, {file} is the file of a platform, and {dir} is that file's name
+# without .tar.gz or .zip. A repository adds an entry of its own, in the same shape, under tools: in its kit.yml.
+tools:
+  shellcheck:
+    github: koalaman/shellcheck
+    tag: v{version}
+    files:
+      darwin/arm64: shellcheck-v{version}.darwin.aarch64.tar.gz
+      darwin/amd64: shellcheck-v{version}.darwin.x86_64.tar.gz
+      linux/arm64: shellcheck-v{version}.linux.aarch64.tar.gz
+      linux/amd64: shellcheck-v{version}.linux.x86_64.tar.gz
+    program: shellcheck-v{version}/shellcheck
+
+  # The Linux files are those built for musl, which run on any Linux.
+  lychee:
+    github: lycheeverse/lychee
+    tag: lychee-v{version}
+    files:
+      darwin/arm64: lychee-aarch64-apple-darwin.tar.gz
+      darwin/amd64: lychee-x86_64-apple-darwin.tar.gz
+      linux/arm64: lychee-aarch64-unknown-linux-musl.tar.gz
+      linux/amd64: lychee-x86_64-unknown-linux-musl.tar.gz
+    program: "{dir}/lychee"
+    checksums: "{file}.sha256"

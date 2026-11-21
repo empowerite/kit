@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "a repository's kit.yml",
+  "type": "object",
+  "properties": {
+    "tools": {
+      "type": "object",
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/version"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "github": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+              },
+              "tag": {
+                "type": "string",
+                "pattern": "\\{version\\}"
+              },
+              "files": {
+                "type": "object",
+                "properties": {
+                  "darwin/arm64": {
+                    "$ref": "#/$defs/file"
+                  },
+                  "darwin/amd64": {
+                    "$ref": "#/$defs/file"
+                  },
+                  "linux/arm64": {
+                    "$ref": "#/$defs/file"
+                  },
+                  "linux/amd64": {
+                    "$ref": "#/$defs/file"
+                  }
+                },
+                "required": [
+                  "darwin/arm64",
+                  "darwin/amd64",
+                  "linux/arm64",
+                  "linux/amd64"
+                ],
+                "additionalProperties": false
+              },
+              "program": {
+                "type": "string",
+                "minLength": 1
+              },
+              "checksums": {
+                "type": "string",
+                "pattern": "\\{file\\}"
+              },
+              "version": {
+                "$ref": "#/$defs/version"
+              }
+            },
+            "required": [
+              "version",
+              "github",
+              "tag",
+              "files",
+              "program"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "propertyNames": {
+        "pattern": "^[a-z0-9][a-z0-9._-]*$"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9A-Za-z][0-9A-Za-z.+_-]*$"
+    },
+    "file": {
+      "type": "string",
+      "pattern": "\\.(tar\\.gz|zip)$"
+    }
+  }
+}

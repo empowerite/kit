@@ -163,3 +163,28 @@ func TestTheOthersSayWhatTheyAreSetTo(t *testing.T) {
 		t.Errorf("Processes.Run = %d, with %d runs kept; want 2 and 1", code, len(r.Runs))
 	}
 }
+
+func TestReleasesAndDownloadsGiveWhatTheyHold(t *testing.T) {
+	ctx := context.Background()
+	r := &Releases{Tags: map[string]string{"o/r": "v1"}}
+	r.Put("o/r", "v1", "a", "https://x/a", "")
+	if a, err := r.Asset(ctx, "o/r", "v1", "a"); a.URL != "https://x/a" || err != nil {
+		t.Errorf("Asset = %+v, %v", a, err)
+	}
+	if _, err := r.Asset(ctx, "o/r", "v1", "b"); err == nil {
+		t.Error("Asset of a file the release does not hold gave no error")
+	}
+	if tag, err := r.Newest(ctx, "o/r"); tag != "v1" || err != nil {
+		t.Errorf("Newest = %q, %v", tag, err)
+	}
+	if _, err := r.Newest(ctx, "o/none"); err == nil {
+		t.Error("Newest of a repository with no release gave no error")
+	}
+	d := Downloads{"https://x/a": []byte("a")}
+	if got, err := d.Get(ctx, "https://x/a"); string(got) != "a" || err != nil {
+		t.Errorf("Get = %q, %v", got, err)
+	}
+	if _, err := d.Get(ctx, "https://x/b"); err == nil {
+		t.Error("Get of nothing gave no error")
+	}
+}

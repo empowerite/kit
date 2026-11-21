@@ -4,13 +4,20 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"runtime/debug"
 
+	"github.com/empowerite/kit/internal/adapters/git"
+	"github.com/empowerite/kit/internal/adapters/github"
+	kitos "github.com/empowerite/kit/internal/adapters/os"
 	"github.com/empowerite/kit/internal/cli"
 	"github.com/empowerite/kit/internal/data"
+	"github.com/empowerite/kit/internal/ports"
+	"github.com/empowerite/kit/internal/toolchain"
 )
 
 // build gives what Go recorded of this build. A test stands in for it.
@@ -23,9 +30,41 @@ var exit = os.Exit
 var commands = cli.Commands
 
 // handlers does each command, by its words joined by a space.
-var handlers = map[string]cli.Handler{
+var handlers = both(map[string]cli.Handler{
 	"version":   version,
 	"data show": dataShow,
+}, cli.Tools(desk))
+
+// both gives the handlers of both maps.
+func both(a, b map[string]cli.Handler) map[string]cli.Handler {
+	maps.Copy(a, b)
+	return a
+}
+
+// desk gives the machine kit runs on, with the real systems wired in.
+func desk() (toolchain.Desk, error) {
+	dir, err := os.Getwd()
+	token := os.Getenv("GH_TOKEN")
+	if token == "" {
+		token = os.Getenv("GITHUB_TOKEN")
+	}
+	return toolchain.Desk{
+		Dir:       dir,
+		Files:     kitos.Files{},
+		Git:       git.New(kitos.Processes{}),
+		Releases:  github.NewReleases(token, nil),
+		Downloads: github.NewDownloads(nil),
+		Presence:  noPresence{},
+	}, err
+}
+
+// noPresence stands in for the machine's proof that the person is there, which #48 brings. It refuses, so that
+// nothing is applied with no proof.
+type noPresence struct{}
+
+func (noPresence) Prove(context.Context, string, string) (ports.Proof, error) {
+	return ports.Proof{}, errors.New("presence: this build of kit cannot yet ask for proof that you are here " +
+		"(#48 brings it), so it applies nothing")
 }
 
 func main() {

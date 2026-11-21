@@ -2,6 +2,7 @@ package fake
 
 import (
 	"context"
+	"fmt"
 	"io/fs"
 	"path"
 	"slices"
@@ -255,4 +256,42 @@ type Processes struct {
 func (p *Processes) Run(_ context.Context, c ports.Cmd) (int, error) {
 	p.Runs = append(p.Runs, c)
 	return p.Answer(c)
+}
+
+// Releases is a forge's releases, in memory: each file by its repository, tag, and name.
+type Releases struct {
+	Assets map[string]ports.Asset // by "repo tag name"
+	Tags   map[string]string      // a repository's newest tag
+}
+
+// Put puts a file in a release, at an address, with the digest the forge keeps of it.
+func (r *Releases) Put(repo, tag, name, url, digest string) {
+	if r.Assets == nil {
+		r.Assets = map[string]ports.Asset{}
+	}
+	r.Assets[repo+" "+tag+" "+name] = ports.Asset{URL: url, Digest: digest}
+}
+
+func (r *Releases) Asset(_ context.Context, repo, tag, name string) (ports.Asset, error) {
+	if a, ok := r.Assets[repo+" "+tag+" "+name]; ok {
+		return a, nil
+	}
+	return ports.Asset{}, fmt.Errorf("github: %s %s has no file %s", repo, tag, name)
+}
+
+func (r *Releases) Newest(_ context.Context, repo string) (string, error) {
+	if tag, ok := r.Tags[repo]; ok {
+		return tag, nil
+	}
+	return "", fmt.Errorf("github: %s has no release", repo)
+}
+
+// Downloads is what each address holds, in memory.
+type Downloads map[string][]byte
+
+func (d Downloads) Get(_ context.Context, url string) ([]byte, error) {
+	if body, ok := d[url]; ok {
+		return body, nil
+	}
+	return nil, fmt.Errorf("download: %s: 404", url)
 }

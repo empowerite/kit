@@ -73,3 +73,22 @@ type Processes interface {
 	// Run runs a program to its end, and gives its exit status. An error is a program that could not be run.
 	Run(ctx context.Context, c Cmd) (int, error)
 }
+
+// Asset is one file of a release: where it is downloaded from, and the digest the forge keeps of it, as
+// "sha256:<hex>", or "" where it keeps none.
+type Asset struct {
+	URL, Digest string
+}
+
+// Releases reads a forge's releases of a repository.
+type Releases interface {
+	// Asset gives the file of that name of the release with that tag.
+	Asset(ctx context.Context, repo, tag, name string) (Asset, error)
+	// Newest gives the tag of the repository's newest release.
+	Newest(ctx context.Context, repo string) (string, error)
+}
+
+// Downloads fetches what an address holds.
+type Downloads interface {
+	Get(ctx context.Context, url string) ([]byte, error)
+}
