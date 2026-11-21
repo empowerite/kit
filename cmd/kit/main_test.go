@@ -2,9 +2,13 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"runtime/debug"
+	"strings"
 	"testing"
+
+	"github.com/empowerite/kit/internal/cli"
 )
 
 // built gives a build as Go records one: of a commit, made at a time, from a tree that held changes or not. With no
@@ -57,6 +61,23 @@ func TestVersionSaysTheCommitTheBuildIsOf(t *testing.T) {
 	}
 }
 
+func TestVersionSaysTheSameAsJSON(t *testing.T) {
+	with(t, built(commit, "2026-11-19T04:42:54Z", "true"))
+	var out, err bytes.Buffer
+	code := run([]string{"version", "--json"}, &out, &err)
+	var got map[string]any
+	if jerr := json.Unmarshal(out.Bytes(), &got); code != 0 || jerr != nil {
+		t.Fatalf("run = %d, %q; want 0 and JSON", code, out.String())
+	}
+	want := map[string]any{"schema": "kit/version", "version": float64(1), "commit": commit,
+		"time": "2026-11-19T04:42:54Z", "modified": true}
+	for key, value := range want {
+		if got[key] != value {
+			t.Errorf("version --json said %s = %v; want %v", key, got[key], value)
+		}
+	}
+}
+
 func TestVersionOfThisBuildNamesNoCommit(t *testing.T) {
 	// go test records no commit in the builds it makes, so the build Go itself reports here is one that names none.
 	var out, err bytes.Buffer
@@ -70,14 +91,55 @@ func TestRunRefusesWordsItCannotTake(t *testing.T) {
 		args []string
 		err  string
 	}{
-		{nil, "usage: kit version\n"},
-		{[]string{"version", "extra"}, "usage: kit version\n"},
+		{nil, "usage: kit <command> [--json] [--help]\n"},
+		{[]string{"version", "extra"}, "kit version: one argument too many: extra\n"},
 		{[]string{"flow"}, "kit: no such command: flow\n"},
 	} {
 		var out, err bytes.Buffer
-		if code := run(c.args, &out, &err); code != 2 || out.String() != "" || err.String() != c.err {
-			t.Errorf("run(%q) = %d, %q, %q; want 2, nothing on stdout, %q", c.args, code, out.String(), err.String(), c.err)
+		if code := run(c.args, &out, &err); code != 2 || out.String() != "" || !strings.HasPrefix(err.String(), c.err) {
+			t.Errorf("run(%q) = %d, %q, %q; want 2, nothing on stdout, and %q first", c.args, code, out.String(), err.String(), c.err)
 		}
+	}
+}
+
+func TestDataShowPrintsKitsOwnFile(t *testing.T) {
+	var out, err bytes.Buffer
+	if code := run([]string{"data", "show", "commands"}, &out, &err); code != 0 || !strings.Contains(out.String(), "words: [version]") {
+		t.Errorf("run(data show commands) = %d, %q, %q; want 0 and commands.yml", code, out.String(), err.String())
+	}
+	out.Reset()
+	code := run([]string{"data", "show", "commands", "--json"}, &out, &err)
+	var got map[string]any
+	if jerr := json.Unmarshal(out.Bytes(), &got); code != 0 || jerr != nil || got["name"] != "commands" ||
+		!strings.Contains(got["text"].(string), "words: [version]") {
+		t.Errorf("run(data show commands --json) = %d, %q; want 0 and the file as JSON", code, out.String())
+	}
+	out.Reset()
+	err.Reset()
+	if code := run([]string{"data", "show", "nothing"}, &out, &err); code != 1 || !strings.Contains(err.String(), "no file named nothing") {
+		t.Errorf("run(data show nothing) = %d, %q; want 1 and that there is no such file", code, err.String())
+	}
+}
+
+func TestEveryCommandHasAHandler(t *testing.T) {
+	commands, err := cli.Commands()
+	if err != nil {
+		t.Fatalf("cli.Commands() gave the error %v", err)
+	}
+	for _, c := range commands {
+		if _, ok := handlers[strings.Join(c.Words, " ")]; !ok {
+			t.Errorf("kit %s has no handler", strings.Join(c.Words, " "))
+		}
+	}
+}
+
+func TestRunSaysWhereKitsCommandsAreWrong(t *testing.T) {
+	was := commands
+	defer func() { commands = was }()
+	commands = func() ([]cli.Command, error) { return nil, os.ErrNotExist }
+	var out, err bytes.Buffer
+	if code := run([]string{"version"}, &out, &err); code != 2 || !strings.Contains(err.String(), "kit: its commands:") {
+		t.Errorf("run = %d, %q; want 2 and that kit's commands are wrong", code, err.String())
 	}
 }
 
