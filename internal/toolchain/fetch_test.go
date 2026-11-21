@@ -185,14 +185,37 @@ func TestRunToolSaysAProgramItCannotRead(t *testing.T) {
 	d := pinned(t)
 	hydrate(t, d)
 	d.Files.(*fake.Files).Fail["read "+program(t, d)] = errors.New("broken")
-	if err := RunTool(ctx, d, "shellcheck", nil); err == nil || err.Error() != "broken" {
+	if err := RunTool(ctx, d, "/r/.kit/bin/shellcheck", nil); err == nil || err.Error() != "broken" {
 		t.Errorf("RunTool gave %v; want broken", err)
+	}
+}
+
+func TestRunToolByItsNameAloneIsTheToolOfTheBinThePathFindsFirst(t *testing.T) {
+	// A shell started kit by the name alone: the tool is the one in the first .kit/bin on the PATH that holds the
+	// name, as the shell found it, and never the one of the repository kit happens to run in.
+	d := pinned(t)
+	hydrate(t, d)
+	other := pinned(t)
+	d.Dir = "/elsewhere"
+	d.Git = &fake.Git{Err: errors.New("git is not asked")}
+	d.Machine.(*fake.Machine).Env = []string{"PATH=/usr/bin:/r/.kit/bin"}
+	if err := RunTool(ctx, d, "shellcheck", nil); err != nil {
+		t.Fatalf("RunTool gave the error %v", err)
+	}
+	if got := d.Processes.(*fake.Processes).Replaced[0].Path; got != program(t, other) {
+		t.Errorf("RunTool ran %s", got)
+	}
+	for _, env := range [][]string{{"PATH=/usr/bin"}, {"HOME=/home/a"}} {
+		d.Machine.(*fake.Machine).Env = env
+		if err := RunTool(ctx, d, "shellcheck", nil); err == nil || !strings.Contains(err.Error(), "no .kit/bin on the PATH holds shellcheck") {
+			t.Errorf("RunTool with %q gave %v", env, err)
+		}
 	}
 }
 
 func TestRunToolFetchesWhatIsNotFetchedYet(t *testing.T) {
 	d := pinned(t)
-	if err := RunTool(ctx, d, "shellcheck", nil); err != nil {
+	if err := RunTool(ctx, d, "/r/.kit/bin/shellcheck", nil); err != nil {
 		t.Fatalf("RunTool gave the error %v", err)
 	}
 	if _, err := d.Files.Read(program(t, d)); err != nil {
@@ -205,7 +228,7 @@ func TestRunToolRefusesAProgramWhoseDigestDiffers(t *testing.T) {
 	hydrate(t, d)
 	d.Files.Chmod(program(t, d), 0o755)
 	d.Files.Write(program(t, d), []byte("changed in the cache"), 0o755)
-	err := RunTool(ctx, d, "shellcheck", nil)
+	err := RunTool(ctx, d, "/r/.kit/bin/shellcheck", nil)
 	if err == nil || !strings.Contains(err.Error(), "is not the program kit.lock names") {
 		t.Errorf("RunTool gave %v; want a refusal", err)
 	}
@@ -219,7 +242,7 @@ func TestRunToolSaysWhatStandsInItsWay(t *testing.T) {
 	for _, c := range []struct {
 		argv0, want string
 	}{
-		{"lychee", "holds no lychee"},
+		{"/r/.kit/bin/lychee", "holds no lychee"},
 		{"/elsewhere/.kit/bin/shellcheck", "/elsewhere"},
 	} {
 		if err := RunTool(ctx, d, c.argv0, nil); err == nil || !strings.Contains(err.Error(), c.want) {
@@ -227,22 +250,22 @@ func TestRunToolSaysWhatStandsInItsWay(t *testing.T) {
 		}
 	}
 	d.Machine.(*fake.Machine).Arch = "riscv64"
-	if err := RunTool(ctx, d, "shellcheck", nil); err == nil || !strings.Contains(err.Error(), "linux/riscv64") {
+	if err := RunTool(ctx, d, "/r/.kit/bin/shellcheck", nil); err == nil || !strings.Contains(err.Error(), "linux/riscv64") {
 		t.Errorf("RunTool on a platform the lock does not cover gave %v", err)
 	}
 	d.Machine.(*fake.Machine).Arch = "amd64"
 	d.Downloads = failingDownloads{}
-	if err := RunTool(ctx, d, "shellcheck", nil); err == nil || !strings.Contains(err.Error(), "offline") {
+	if err := RunTool(ctx, d, "/r/.kit/bin/shellcheck", nil); err == nil || !strings.Contains(err.Error(), "offline") {
 		t.Errorf("RunTool with nothing fetched and the forge away gave %v", err)
 	}
 	d.Machine.(*fake.Machine).Err = errors.New("no home")
-	if err := RunTool(ctx, d, "shellcheck", nil); err == nil {
+	if err := RunTool(ctx, d, "/r/.kit/bin/shellcheck", nil); err == nil {
 		t.Error("RunTool with no cache gave no error")
 	}
 	d.Machine.(*fake.Machine).Err = nil
-	d.Git = &fake.Git{Err: errors.New("not a clone")}
-	if err := RunTool(ctx, d, "shellcheck", nil); err == nil || err.Error() != "not a clone" {
-		t.Errorf("RunTool outside a clone gave %v", err)
+	d.Files.Write("/r/kit.lock", []byte("{\"tools\": 1}\n"), 0o644)
+	if err := RunTool(ctx, d, "/r/.kit/bin/shellcheck", nil); err == nil || !strings.HasPrefix(err.Error(), "kit.lock:") {
+		t.Errorf("RunTool with a broken lock gave %v", err)
 	}
 }
 

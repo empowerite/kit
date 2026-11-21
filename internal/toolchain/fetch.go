@@ -189,20 +189,28 @@ func Path(ctx context.Context, d Desk, r Repo, name string) (string, error) {
 }
 
 // RunTool is kit started by a tool's name, through a link in .kit/bin: it holds the program to the lock, and runs it
-// in kit's place with the same arguments. The repository is the one whose .kit/bin the link is in, or, where kit was
-// started by the name alone, the one kit runs in.
+// in kit's place with the same arguments. The repository is always the one whose .kit/bin holds the link: where kit
+// was started by the name alone, that is the first folder on the PATH that holds the name, as the shell found it,
+// and never the repository kit happens to run in.
 func RunTool(ctx context.Context, d Desk, argv0 string, args []string) error {
-	var r Repo
-	var err error
-	if strings.Contains(argv0, "/") {
-		bin := argv0
-		if !path.IsAbs(bin) {
-			bin = path.Join(d.Dir, bin)
+	link := argv0
+	if !strings.Contains(link, "/") {
+		link = ""
+		for _, dir := range pathOf(d.Machine.Environ()) {
+			if _, err := d.Files.Stat(dir + "/" + argv0); err == nil {
+				link = dir + "/" + argv0
+				break
+			}
 		}
-		r, err = openAt(d, path.Dir(path.Dir(path.Dir(bin))))
-	} else {
-		r, err = Open(ctx, d)
 	}
+	if !path.IsAbs(link) {
+		link = path.Join(d.Dir, link)
+	}
+	bin := path.Dir(link)
+	if path.Base(bin) != "bin" || path.Base(path.Dir(bin)) != ".kit" {
+		return fmt.Errorf("kit was started as %s, and no .kit/bin on the PATH holds %s", argv0, path.Base(argv0))
+	}
+	r, err := openAt(d, path.Dir(path.Dir(bin)))
 	if err != nil {
 		return err
 	}
@@ -223,6 +231,16 @@ func Exec(ctx context.Context, d Desk, r Repo, argv []string) error {
 		return result.Err
 	}
 	return d.Processes.Replace(ports.Cmd{Path: argv[0], Args: argv[1:], Env: withPath(d.Machine.Environ(), r.Root+"/.kit/bin")})
+}
+
+// pathOf gives the folders of the PATH an environment holds.
+func pathOf(env []string) []string {
+	for _, kv := range env {
+		if dirs, ok := strings.CutPrefix(kv, "PATH="); ok {
+			return strings.Split(dirs, ":")
+		}
+	}
+	return nil
 }
 
 // withPath gives an environment with a folder first on its PATH.
