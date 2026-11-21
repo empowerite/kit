@@ -216,6 +216,9 @@ func decide(ctx context.Context, call Call, out Out, d toolchain.Desk, p plan.Pl
 		return Print(out, "plan", map[string]any{"plan": doc})
 	case !out.JSON:
 		plan.Print(out.Stdout, doc)
+	case call.Options["plan"] == nil:
+		// The JSON is said once the act is done; the person sees the plan before they are asked to approve it.
+		plan.Print(out.Stderr, doc)
 	}
 	if call.Options["plan"] != nil {
 		return 0
