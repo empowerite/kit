@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -284,5 +285,21 @@ func TestExecSaysWhatStandsInItsWay(t *testing.T) {
 	d.Files.(*fake.Files).Fail["read /r/aqua.yaml"] = errors.New("broken")
 	if err := Exec(ctx, d, Repo{Root: "/r"}, []string{"gh"}, nil); err == nil {
 		t.Error("Exec with a manager's file unreadable gave no error")
+	}
+}
+
+func TestTrustCoversEveryFileDetectTakesAsAToolManagers(t *testing.T) {
+	for _, m := range managers {
+		if m.name != "mise" {
+			continue
+		}
+		for _, name := range m.files {
+			if !slices.Contains(covers, name) {
+				t.Errorf("Detect takes %s as mise's, and trust does not cover it", name)
+			}
+		}
+	}
+	if len(miseConfigs) < 5 || slices.Contains(miseConfigs, "mise.lock") {
+		t.Errorf("miseConfigs = %q", miseConfigs)
 	}
 }

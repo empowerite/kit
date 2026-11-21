@@ -34,9 +34,23 @@ func Tools(desk func() (toolchain.Desk, error)) map[string]Handler {
 			if err != nil {
 				return fail(out, err)
 			}
+			d.Once = false
+			if toolchain.Allowed(ctx, d, r) == nil {
+				// The person trusts what the clone holds already: there is nothing to approve.
+				if out.JSON {
+					return Print(out, "trust", map[string]any{"trusted": true, "changes": []string{}})
+				}
+				fmt.Fprintln(out.Stdout, "kit trusts this clone already, as it holds now: there is nothing to approve.")
+				return 0
+			}
+			if out.JSON && call.Options["plan"] == nil {
+				for _, line := range changes {
+					fmt.Fprintln(out.Stderr, line)
+				}
+			}
 			if !out.JSON {
 				if len(changes) == 0 {
-					fmt.Fprintln(out.Stdout, "Nothing changed since you last trusted this clone.")
+					fmt.Fprintln(out.Stdout, "This clone holds nothing kit would fetch or run.")
 				} else {
 					fmt.Fprintln(out.Stdout, "What changed since you last trusted this clone:")
 				}
@@ -242,6 +256,9 @@ func decide(ctx context.Context, call Call, out Out, d toolchain.Desk, p plan.Pl
 		return Print(out, "plan", map[string]any{"plan": doc})
 	case !out.JSON:
 		plan.Print(out.Stdout, doc)
+	case call.Options["plan"] == nil:
+		// The JSON is said once the act is done; the person sees the plan before they are asked to approve it.
+		plan.Print(out.Stderr, doc)
 	}
 	if call.Options["plan"] != nil {
 		return 0

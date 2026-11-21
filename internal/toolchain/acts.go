@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io/fs"
 	"maps"
+	"reflect"
+	"slices"
 	"strings"
 
 	"github.com/empowerite/kit/internal/data"
@@ -95,16 +97,55 @@ func entryFor(pin Pin, list map[string]Entry) (Entry, error) {
 		"in the shape kit data show tools gives", pin.Name)
 }
 
-// writes gives the steps that write kit.yml and kit.lock, each only where it changes.
-func (r Repo) writes(d Desk, yml string, lock Lock) []plan.Operation {
+// region is kit's line in an .envrc: it has direnv put the pinned tools on the PATH. Its markers let kit find it,
+// and take it out again.
+const region = "# kit:begin - kit's line: it puts the pinned tools on the PATH; kit put it here, and can take it out\n" +
+	"eval \"$(kit env --shell=direnv)\"\n" +
+	"# kit:end\n"
+
+// writes gives the steps that write kit.yml, kit.lock, and kit's line in an .envrc that exists, each only where it
+// changes, and each saying what it changes.
+func (r Repo) writes(d Desk, yml string, pinned []string, lock Lock) ([]plan.Operation, error) {
 	var ops []plan.Operation
 	if yml != r.KitYML {
-		ops = append(ops, plan.WriteFile(d.Files, r.Root, "kit.yml", []byte(yml)))
+		ops = append(ops, plan.WriteFile(d.Files, r.Root, "kit.yml", []byte(yml), pinned...))
 	}
 	if text := lock.JSON(); !bytes.Equal(text, r.KitLock) {
-		ops = append(ops, plan.WriteFile(d.Files, r.Root, "kit.lock", text))
+		var detail []string
+		for _, name := range slices.Sorted(maps.Keys(lock.Tools)) {
+			if l := lock.Tools[name]; !reflect.DeepEqual(l, r.Lock.Tools[name]) {
+				detail = append(detail, said(name, l)...)
+			}
+		}
+		ops = append(ops, plan.WriteFile(d.Files, r.Root, "kit.lock", text, detail...))
 	}
-	return ops
+	envrc, err := read(d.Files, r.Root+"/.envrc")
+	if err != nil {
+		return nil, err
+	}
+	if envrc != nil && !strings.Contains(string(envrc), "# kit:begin") {
+		text := string(envrc)
+		if !strings.HasSuffix(text, "\n") {
+			text += "\n"
+		}
+		ops = append(ops, plan.WriteFile(d.Files, r.Root, ".envrc", []byte(text+region),
+			"adds kit's line, eval \"$(kit env --shell=direnv)\", between # kit:begin and # kit:end"))
+	}
+	return ops, nil
+}
+
+// said says a locked tool as a plan shows it: each platform's file, its digest, and what confirmed it.
+func said(name string, l Locked) []string {
+	lines := []string{fmt.Sprintf("%s %s, for each platform:", name, l.Version)}
+	for _, p := range Platforms {
+		f := l.Files[p]
+		by := "confirmed by " + strings.Join(f.Confirmed, " and ")
+		if len(f.Confirmed) == 0 {
+			by = "confirmed by nothing: pinned with --unconfirmed"
+		}
+		lines = append(lines, fmt.Sprintf("  %s  %s", p, f.URL), fmt.Sprintf("    %s, %s", f.Digest, by))
+	}
+	return lines
 }
 
 // Add plans to pin a tool, given as name or name@version, and to lock it for every platform. With no version, it is
@@ -131,7 +172,8 @@ func Add(ctx context.Context, d Desk, r Repo, list map[string]Entry, tool string
 	}
 	lock := Lock{Tools: maps.Clone(r.Lock.Tools)}
 	lock.Tools[name] = l
-	return plan.Plan{Act: "tools add " + name + "@" + version, Operations: r.writes(d, yml, lock)}, l, nil
+	ops, err := r.writes(d, yml, []string{"pins " + name + " at " + version}, lock)
+	return plan.Plan{Act: "tools add " + name + "@" + version, Operations: ops}, l, err
 }
 
 // newest gives the version of a tool's newest release, from its tag.
@@ -161,5 +203,6 @@ func Relock(ctx context.Context, d Desk, r Repo, list map[string]Entry, unconfir
 			return plan.Plan{}, err
 		}
 	}
-	return plan.Plan{Act: "tools lock", Operations: r.writes(d, r.KitYML, lock)}, nil
+	ops, err := r.writes(d, r.KitYML, nil, lock)
+	return plan.Plan{Act: "tools lock", Operations: ops}, err
 }

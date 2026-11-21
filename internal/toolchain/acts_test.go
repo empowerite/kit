@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/empowerite/kit/internal/adapters/fake"
+	"github.com/empowerite/kit/internal/data"
 	"github.com/empowerite/kit/internal/plan"
 	"github.com/empowerite/kit/internal/ports"
 )
@@ -140,5 +141,74 @@ func TestLockLocksEveryPinAgain(t *testing.T) {
 	d.Releases.(*forge).fail = errors.New("offline")
 	if _, err := Relock(ctx, d, r, list, false); err == nil {
 		t.Error("Relock with the forge away gave no error")
+	}
+}
+
+func TestAddShowsWhatItPinsAndLocksInFull(t *testing.T) {
+	d, list := desk(t)
+	p, _, _ := Add(ctx, d, open(t, d), list, "shellcheck@0.11.0", false)
+	doc, _ := p.Doc(ctx)
+	yml, lock := strings.Join(doc.Steps[0].Detail, "\n"), strings.Join(doc.Steps[1].Detail, "\n")
+	if yml != "pins shellcheck at 0.11.0" {
+		t.Errorf("the write of kit.yml says %q", yml)
+	}
+	for _, want := range []string{"shellcheck 0.11.0, for each platform:", "  linux/amd64  https://github.com/koalaman/shellcheck/releases/download/v0.11.0/",
+		"    sha256:", ", confirmed by github"} {
+		if !strings.Contains(lock, want) {
+			t.Errorf("the write of kit.lock says %q; want %q", lock, want)
+		}
+	}
+	f := newForge()
+	e := shellcheck(t, f, "0.10.0", false)
+	d.Releases, d.Downloads = f, f
+	p, _, _ = Add(ctx, d, open(t, d), map[string]Entry{"shellcheck": e}, "shellcheck@0.10.0", true)
+	doc, _ = p.Doc(ctx)
+	if lock := strings.Join(doc.Steps[1].Detail, "\n"); !strings.Contains(lock, "confirmed by nothing: pinned with --unconfirmed") {
+		t.Errorf("an unconfirmed pin says %q", lock)
+	}
+}
+
+func TestAddPutsKitsLineIntoAnEnvrcThatExists(t *testing.T) {
+	d, list := desk(t)
+	d.Files.Write("/r/.envrc", []byte("use nix\n"), 0o644)
+	p, _, _ := Add(ctx, d, open(t, d), list, "shellcheck@0.11.0", false)
+	apply(t, d, p)
+	envrc, _ := d.Files.Read("/r/.envrc")
+	if string(envrc) != "use nix\n"+region {
+		t.Errorf(".envrc holds %q", envrc)
+	}
+	// Added again, the line is there already: nothing changes.
+	if p, _, _ := Add(ctx, d, open(t, d), list, "shellcheck@0.11.0", false); len(p.Operations) != 0 {
+		t.Errorf("Add again has %d steps", len(p.Operations))
+	}
+	// With no .envrc, kit makes none: whether to use direnv is the repository's choice.
+	e, list := desk(t)
+	p, _, _ = Add(ctx, e, open(t, e), list, "shellcheck@0.11.0", false)
+	apply(t, e, p)
+	if _, err := e.Files.Read("/r/.envrc"); err == nil {
+		t.Error("Add made an .envrc")
+	}
+	n, list := desk(t)
+	n.Files.Write("/r/.envrc", []byte("use nix"), 0o644)
+	p, _, _ = Add(ctx, n, open(t, n), list, "shellcheck@0.11.0", false)
+	apply(t, n, p)
+	if envrc, _ := n.Files.Read("/r/.envrc"); string(envrc) != "use nix\n"+region {
+		t.Errorf("an .envrc with no last newline holds %q", envrc)
+	}
+	d.Files.(*fake.Files).Fail["read /r/.envrc"] = errors.New("broken")
+	if _, _, err := Add(ctx, d, open(t, d), list, "shellcheck@0.11.0", false); err == nil {
+		t.Error("Add with .envrc unreadable gave no error")
+	}
+}
+
+func TestReadPinsRefusesANameThatIsNoToolsName(t *testing.T) {
+	for _, name := range []string{"../x", "a/b", "Upper", ".hidden"} {
+		_, err := ReadPins(data.Source{Name: "kit.yml", Text: []byte("tools:\n  \"" + name + "\": 1.0.0\n")})
+		if err == nil {
+			t.Errorf("ReadPins took the tool name %q", name)
+		}
+	}
+	if _, err := ReadLock([]byte(`{"tools": {"../../.git/hooks/pre-commit": {}}}`)); err == nil {
+		t.Error("ReadLock took a tool name that leaves .kit/bin")
 	}
 }

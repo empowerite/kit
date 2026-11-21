@@ -18,13 +18,19 @@ type Manager struct {
 	Name, File string
 }
 
+// miseConfigs are the files that show mise is in use: those of miseFiles that configure it. Trust covers each of
+// miseFiles, so it covers every file Detect takes as mise's.
+var miseConfigs = slices.DeleteFunc(slices.Clone(miseFiles), func(name string) bool {
+	return name == "mise.lock" || name == ".tool-versions"
+})
+
 // managers are the tool managers kit knows by their files. kit reads mise's; it names the others, and says that it
 // does not read them yet.
 var managers = []struct {
 	name  string
 	files []string
 }{
-	{"mise", []string{"mise.toml", ".mise.toml", ".config/mise.toml", "mise/config.toml", ".config/mise/config.toml"}},
+	{"mise", miseConfigs},
 	{"asdf", []string{".tool-versions"}},
 	{"aqua", []string{"aqua.yaml", ".aqua.yaml", "aqua.yml"}},
 	{"Nix", []string{"flake.nix"}},
