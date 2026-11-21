@@ -19,6 +19,7 @@ func pinned(t *testing.T) Desk {
 	d.Machine = &fake.Machine{OS: "linux", Arch: "amd64", CacheDir: "/cache/kit", StateDir: "/state/kit", Kit: "/usr/bin/kit",
 		Env: []string{"HOME=/home/a", "PATH=/usr/bin"}}
 	d.Processes = &fake.Processes{}
+	d.Once = true // these tests are of fetching and running; trust's own are in trust_test.go
 	d.Files.Write("/usr/bin/kit", []byte("kit itself"), 0o755)
 	p, _, err := Add(ctx, d, open(t, d), list, "shellcheck@0.11.0", false)
 	if err != nil {
@@ -254,7 +255,6 @@ func TestRunToolByItsNameAloneIsTheToolOfTheBinThePathFindsFirst(t *testing.T) {
 	hydrate(t, d)
 	want := program(t, d)
 	d.Dir = "/elsewhere"
-	d.Git = &fake.Git{Err: errors.New("git is not asked")}
 	d.Machine.(*fake.Machine).Env = []string{"PATH=/usr/bin:/r/.kit/bin"}
 	if err := RunTool(ctx, d, "shellcheck", nil); err != nil {
 		t.Fatalf("RunTool gave the error %v", err)
@@ -324,14 +324,17 @@ func TestRunToolSaysWhatStandsInItsWay(t *testing.T) {
 	if err := RunTool(ctx, d, "/r/.kit/bin/shellcheck", nil); err == nil || !strings.HasPrefix(err.Error(), "kit.lock:") {
 		t.Errorf("RunTool with a broken lock gave %v", err)
 	}
+	d.Files.Write("/r/kit.lock", open(t, pinned(t)).Lock.JSON(), 0o644)
+	d.Git = &fake.Git{Err: errors.New("not a clone")}
+	if err := RunTool(ctx, d, "/r/.kit/bin/shellcheck", nil); err == nil || err.Error() != "not a clone" {
+		t.Errorf("RunTool with no clone at the link gave %v", err)
+	}
 }
 
 func TestRunToolFindsTheRootFromAPathRelativeToWhereKitRuns(t *testing.T) {
 	d := pinned(t)
 	d.Dir = "/r/sub"
-	d.Git = &fake.Git{Err: errors.New("git is not asked")}
-	hydrate(t, Desk{Dir: "/r", Files: d.Files, Git: &fake.Git{RootDir: "/r", Common: "/r/.git", Tracks: map[string]bool{}},
-		Releases: d.Releases, Downloads: d.Downloads, Machine: d.Machine})
+	hydrate(t, d)
 	if err := RunTool(ctx, d, "../.kit/bin/shellcheck", nil); err != nil {
 		t.Errorf("RunTool by a relative path gave %v", err)
 	}

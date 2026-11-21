@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/empowerite/kit/internal/plan"
 	"github.com/empowerite/kit/internal/toolchain"
@@ -23,8 +24,48 @@ func Tools(desk func() (toolchain.Desk, error)) map[string]Handler {
 				return toolchain.Relock(ctx, d, r, list, call.Options["unconfirmed"] != nil)
 			})
 		},
+		"trust": func(ctx context.Context, call Call, out Out) int {
+			d, r, err := opened(ctx, call, desk)
+			var p plan.Plan
+			var changes []string
+			if err == nil {
+				p, changes, err = toolchain.TrustPlan(ctx, d, r)
+			}
+			if err != nil {
+				return fail(out, err)
+			}
+			d.Once = false
+			if toolchain.Allowed(ctx, d, r) == nil {
+				// The person trusts what the clone holds already: there is nothing to approve.
+				if out.JSON {
+					return Print(out, "trust", map[string]any{"trusted": true, "changes": []string{}})
+				}
+				fmt.Fprintln(out.Stdout, "kit trusts this clone already, as it holds now: there is nothing to approve.")
+				return 0
+			}
+			if out.JSON && call.Options["plan"] == nil {
+				for _, line := range changes {
+					fmt.Fprintln(out.Stderr, line)
+				}
+			}
+			if !out.JSON {
+				if len(changes) == 0 {
+					fmt.Fprintln(out.Stdout, "This clone holds nothing kit would fetch or run.")
+				} else {
+					fmt.Fprintln(out.Stdout, "What changed since you last trusted this clone:")
+				}
+				for _, line := range changes {
+					fmt.Fprintln(out.Stdout, "  "+line)
+				}
+				if state := toolchain.DirenvState(ctx, d, r.Root); strings.Contains(state, ".envrc:") {
+					fmt.Fprintln(out.Stdout, state)
+				}
+			}
+			doc, _ := p.Doc(ctx)
+			return decide(ctx, call, out, d, p, doc)
+		},
 		"tools": func(ctx context.Context, call Call, out Out) int {
-			d, r, err := opened(ctx, desk)
+			d, r, err := opened(ctx, call, desk)
 			var listed []toolchain.Listed
 			if err == nil {
 				listed, err = toolchain.Tools(d, r)
@@ -45,7 +86,7 @@ func Tools(desk func() (toolchain.Desk, error)) map[string]Handler {
 			return 0
 		},
 		"tools fetch": func(ctx context.Context, call Call, out Out) int {
-			d, r, err := opened(ctx, desk)
+			d, r, err := opened(ctx, call, desk)
 			var p plan.Plan
 			if err == nil {
 				p, err = toolchain.Fetch(ctx, d, r)
@@ -67,7 +108,7 @@ func Tools(desk func() (toolchain.Desk, error)) map[string]Handler {
 			return status
 		},
 		"tools path": func(ctx context.Context, call Call, out Out) int {
-			d, r, err := opened(ctx, desk)
+			d, r, err := opened(ctx, call, desk)
 			var path string
 			if err == nil {
 				path, err = toolchain.Path(ctx, d, r, call.Args[0])
@@ -82,7 +123,7 @@ func Tools(desk func() (toolchain.Desk, error)) map[string]Handler {
 			return 0
 		},
 		"exec": func(ctx context.Context, call Call, out Out) int {
-			d, r, err := opened(ctx, desk)
+			d, r, err := opened(ctx, call, desk)
 			if err != nil {
 				return fail(out, err)
 			}
@@ -97,7 +138,7 @@ func Tools(desk func() (toolchain.Desk, error)) map[string]Handler {
 			if given := call.Options["shell"]; given != nil {
 				shell = given[0]
 			}
-			d, r, err := opened(ctx, desk)
+			d, r, err := opened(ctx, call, desk)
 			if err != nil {
 				return fail(out, err)
 			}
@@ -122,11 +163,18 @@ func Tools(desk func() (toolchain.Desk, error)) map[string]Handler {
 	}
 }
 
-// opened gives the desk, and the repository it is in.
-func opened(ctx context.Context, desk func() (toolchain.Desk, error)) (toolchain.Desk, toolchain.Repo, error) {
+// opened gives the desk, and the repository it is in. --trust=checkout trusts the checkout for this run alone.
+func opened(ctx context.Context, call Call, desk func() (toolchain.Desk, error)) (toolchain.Desk, toolchain.Repo, error) {
 	d, err := desk()
 	if err != nil {
 		return d, toolchain.Repo{}, err
+	}
+	switch given := call.Options["trust"]; {
+	case given == nil:
+	case given[0] == "checkout":
+		d.Once = true
+	default:
+		return d, toolchain.Repo{}, fmt.Errorf("--trust takes checkout, and nothing else")
 	}
 	r, err := toolchain.Open(ctx, d)
 	return d, r, err
@@ -158,7 +206,7 @@ type result struct {
 // it and applies it.
 func act(ctx context.Context, call Call, out Out, desk func() (toolchain.Desk, error),
 	planned func(toolchain.Desk, toolchain.Repo, map[string]toolchain.Entry) (plan.Plan, error)) int {
-	d, r, err := opened(ctx, desk)
+	d, r, err := opened(ctx, call, desk)
 	if err != nil {
 		return fail(out, err)
 	}
@@ -168,10 +216,16 @@ func act(ctx context.Context, call Call, out Out, desk func() (toolchain.Desk, e
 		return fail(out, err)
 	}
 	doc, _ := p.Doc(ctx)
-	switch {
-	case len(doc.Steps) == 0 && !out.JSON:
+	if len(doc.Steps) == 0 && !out.JSON {
 		fmt.Fprintln(out.Stdout, "kit: nothing to change: kit.yml and kit.lock hold it already")
 		return 0
+	}
+	return decide(ctx, call, out, d, p, doc)
+}
+
+// decide shows a plan, and, unless --plan, asks the person to approve it with presence, and applies it.
+func decide(ctx context.Context, call Call, out Out, d toolchain.Desk, p plan.Plan, doc plan.Doc) int {
+	switch {
 	case call.Options["plan"] != nil && out.JSON:
 		return Print(out, "plan", map[string]any{"plan": doc})
 	case !out.JSON:
