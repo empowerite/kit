@@ -1,0 +1,30 @@
+# build.yml - says whether the commit on main is the tree the gate judged, and so built
+#
+# No test runs here, as none runs on main. bin/landed finds the pull request that landed as the commit, and checks
+# that the commit holds the very tree the gate judged, in a run of the gate that held. A commit of which that is not
+# so fails this run. The README's build badge is this run's, so it speaks of main, and of nothing but this check:
+# coverage.yml tells Codecov, so that Codecov being down turns no badge red.
+name: build
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  actions: read        # the gate's run, and what it kept
+  pull-requests: read  # the pull request a commit landed as
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: what the gate judged
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -o pipefail
+          bin/landed --commit="${GITHUB_SHA}" --into="${RUNNER_TEMP}/gate" | tee -a "${GITHUB_STEP_SUMMARY}"
