@@ -9,3 +9,11 @@ commands:
       Says the commit this build of kit was made from, when that commit was made, and whether the tree held changes
       the commit does not. A build does not know its release: a release is a tag put afterwards on a commit whose
       build exists, and two releases can name one build.
+
+  - words: [data, show]
+    summary: print one of kit's own data files
+    help: |
+      Prints one of the data files kit holds inside itself, as kit reads it: its commands, and its other defaults. A
+      repository's own files are laid over these.
+    args:
+      - name: name
