@@ -1,4 +1,4 @@
-// Package cli holds the command line, from the commands' data. It may import doc, plan, and data.
+// Package cli holds the command line, from the commands' data. It may import doc, plan, data, and toolchain.
 //
 // Each command's words, options, arguments, and help are data, in kit's commands.yml. From them come the parsing,
 // the usage line, and the help. Every command takes --json, which prints what it says as JSON with a schema and a

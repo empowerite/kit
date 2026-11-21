@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"os"
 	"runtime/debug"
@@ -151,5 +152,19 @@ func TestMainExitsWithWhatRunGives(t *testing.T) {
 	main()
 	if got != 2 {
 		t.Errorf("main() exited %d with no command; want 2", got)
+	}
+}
+
+func TestDeskIsTheRealMachine(t *testing.T) {
+	d, err := desk()
+	if err != nil || d.Dir == "" || d.Files == nil || d.Git == nil || d.Releases == nil || d.Downloads == nil {
+		t.Errorf("desk() = %+v, %v; want every system wired", d, err)
+	}
+	t.Setenv("GH_TOKEN", "a")
+	if d, _ := desk(); d.Releases == nil {
+		t.Error("desk() with a token gave no releases")
+	}
+	if _, err := d.Presence.Prove(context.Background(), "approve", "abc"); err == nil || !strings.Contains(err.Error(), "#48") {
+		t.Errorf("Prove gave %v; want a refusal that names #48", err)
 	}
 }

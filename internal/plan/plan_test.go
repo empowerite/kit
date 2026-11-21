@@ -41,7 +41,7 @@ func approve(t *testing.T, p Plan) Approval {
 
 func TestHashChangesWhenAFactChanges(t *testing.T) {
 	files, _ := world()
-	p := Plan{Act: "tools add", Operations: []Operation{WriteFile(files, "/r/kit.yml", []byte("tools: {}\n"))}}
+	p := Plan{Act: "tools add", Operations: []Operation{WriteFile(files, "/r", "kit.yml", []byte("tools: {}\n"))}}
 	before := hash(t, p)
 	if again := hash(t, p); again != before {
 		t.Errorf("Hash gave %s, then %s, with nothing changed", before, again)
@@ -60,7 +60,7 @@ func TestHashChangesWhenAFactChanges(t *testing.T) {
 func TestHashRefusesAFactItCannotRead(t *testing.T) {
 	files, _ := world()
 	files.Fail["read /r/kit.yml"] = errors.New("broken")
-	p := Plan{Act: "tools add", Operations: []Operation{WriteFile(files, "/r/kit.yml", nil)}}
+	p := Plan{Act: "tools add", Operations: []Operation{WriteFile(files, "/r", "kit.yml", nil)}}
 	if _, err := p.Hash(ctx); err == nil || !strings.Contains(err.Error(), "broken") {
 		t.Errorf("Hash gave the error %v; want broken", err)
 	}
@@ -74,7 +74,7 @@ func TestHashRefusesAFactItCannotRead(t *testing.T) {
 
 func TestApproveBindsTheProofToTheHash(t *testing.T) {
 	files, _ := world()
-	p := Plan{Act: "tools add", Operations: []Operation{WriteFile(files, "/r/kit.yml", []byte("x\n"))}}
+	p := Plan{Act: "tools add", Operations: []Operation{WriteFile(files, "/r", "kit.yml", []byte("x\n"))}}
 	presence := &fake.Presence{Proof: ports.Proof{Kind: "touch-id"}}
 	a, err := Approve(ctx, p, presence)
 	h := hash(t, p)
@@ -88,7 +88,7 @@ func TestApproveBindsTheProofToTheHash(t *testing.T) {
 
 func TestApproveRefusesWithNoPresence(t *testing.T) {
 	files, _ := world()
-	p := Plan{Act: "tools add", Operations: []Operation{WriteFile(files, "/r/kit.yml", nil)}}
+	p := Plan{Act: "tools add", Operations: []Operation{WriteFile(files, "/r", "kit.yml", nil)}}
 	_, err := Approve(ctx, p, &fake.Presence{Err: errors.New("nobody is here")})
 	if err == nil || !strings.Contains(err.Error(), "nobody is here") {
 		t.Errorf("Approve gave the error %v; want nobody is here", err)
@@ -98,7 +98,7 @@ func TestApproveRefusesWithNoPresence(t *testing.T) {
 func TestApplyRunsEveryStepOfAnApprovedPlan(t *testing.T) {
 	files, _ := world()
 	p := Plan{Act: "tools add", Operations: []Operation{
-		WriteFile(files, "/r/kit.yml", []byte("a\n")), WriteFile(files, "/r/kit.lock", []byte("b\n"))}}
+		WriteFile(files, "/r", "kit.yml", []byte("a\n")), WriteFile(files, "/r", "kit.lock", []byte("b\n"))}}
 	r := Apply(ctx, p, approve(t, p))
 	if r.Err != nil || len(r.Done) != 2 || len(r.NotDone) != 0 {
 		t.Errorf("Apply = %+v; want both steps done", r)
@@ -110,7 +110,7 @@ func TestApplyRunsEveryStepOfAnApprovedPlan(t *testing.T) {
 
 func TestApplyRefusesAPlanWhoseFactsChanged(t *testing.T) {
 	files, _ := world()
-	p := Plan{Act: "tools add", Operations: []Operation{WriteFile(files, "/r/kit.yml", []byte("a\n"))}}
+	p := Plan{Act: "tools add", Operations: []Operation{WriteFile(files, "/r", "kit.yml", []byte("a\n"))}}
 	a := approve(t, p)
 	if err := files.Write("/r/kit.yml", []byte("changed meanwhile\n"), 0o644); err != nil {
 		t.Fatal(err)
@@ -128,9 +128,9 @@ func TestApplyStopsAtAFailingStepAndSaysWhatIsDone(t *testing.T) {
 	files, _ := world()
 	files.Fail["write /r/kit.lock"] = errors.New("disk full")
 	p := Plan{Act: "tools add", Operations: []Operation{
-		WriteFile(files, "/r/kit.yml", []byte("a\n")),
-		WriteFile(files, "/r/kit.lock", []byte("b\n")),
-		WriteFile(files, "/r/third", []byte("c\n"))}}
+		WriteFile(files, "/r", "kit.yml", []byte("a\n")),
+		WriteFile(files, "/r", "kit.lock", []byte("b\n")),
+		WriteFile(files, "/r", "third", []byte("c\n"))}}
 	r := Apply(ctx, p, approve(t, p))
 	if r.Err == nil || !strings.Contains(r.Err.Error(), "disk full") || len(r.Done) != 1 || len(r.NotDone) != 2 {
 		t.Errorf("Apply = %+v; want disk full, one step done and two not", r)
@@ -146,7 +146,7 @@ func TestHydrateAppliesAPlanOfHydratingStepsAlone(t *testing.T) {
 	if r := Hydrate(ctx, placing); r.Err != nil || len(r.Done) != 1 {
 		t.Errorf("Hydrate = %+v; want the step done", r)
 	}
-	writing := Plan{Act: "tools add", Operations: []Operation{WriteFile(files, "/r/kit.yml", nil)}}
+	writing := Plan{Act: "tools add", Operations: []Operation{WriteFile(files, "/r", "kit.yml", nil)}}
 	if r := Hydrate(ctx, writing); r.Err == nil || !strings.Contains(r.Err.Error(), "needs the person's approval") {
 		t.Errorf("Hydrate = %+v; want a refusal that says the plan needs approval", r)
 	}
@@ -308,7 +308,7 @@ func TestUnplaceSaysWhereItFails(t *testing.T) {
 func TestPrintShowsThePlanAndItsJSON(t *testing.T) {
 	files, git := world()
 	p := Plan{Act: "tools add", Operations: []Operation{
-		WriteFile(files, "/r/kit.yml", []byte("a\n")), Place(files, git, "/r", "env", []byte("x\n"), "")}}
+		WriteFile(files, "/r", "kit.yml", []byte("a\n")), Place(files, git, "/r", "env", []byte("x\n"), "")}}
 	d, err := p.Doc(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -316,13 +316,13 @@ func TestPrintShowsThePlanAndItsJSON(t *testing.T) {
 	var out bytes.Buffer
 	Print(&out, d)
 	want := "Plan  kit tools add, " + d.Hash[:12] + "\n" +
-		"  files  write /r/kit.yml\n" +
-		"  .kit   place /r/.kit/env, read-only\n"
+		"  files  write kit.yml\n" +
+		"  .kit   place .kit/env, read-only\n"
 	if out.String() != want {
 		t.Errorf("Print gave\n%s\nwant\n%s", out.String(), want)
 	}
 	encoded, _ := json.Marshal(d)
-	if !strings.Contains(string(encoded), `"system":"files","does":"write /r/kit.yml","undoable":true`) {
+	if !strings.Contains(string(encoded), `"system":"files","does":"write kit.yml","undoable":true`) {
 		t.Errorf("the plan as JSON is %s", encoded)
 	}
 	files.Fail["read /r/kit.yml"] = errors.New("broken")

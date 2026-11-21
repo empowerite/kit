@@ -17,3 +17,29 @@ commands:
       repository's own files are laid over these.
     args:
       - name: name
+
+  - words: [tools, add]
+    summary: pin a tool, and lock it for every platform
+    help: |
+      Pins a tool in kit.yml, at the version given, or at its newest release, and locks it in kit.lock for macOS and
+      Linux, each on arm64 and x86-64. For each platform kit downloads the tool's file, takes its sha256, and holds
+      it to the digest GitHub keeps and to the checksum the tool publishes; a digest nothing confirms is refused. It
+      shows its plan, and changes nothing until you approve it.
+    options:
+      - name: unconfirmed
+        help: pin a file that neither GitHub nor the tool confirms, on kit's own download alone
+      - name: plan
+        help: print the plan, and change nothing
+    args:
+      - name: tool[@version]
+
+  - words: [tools, lock]
+    summary: lock every pinned tool again, for every platform
+    help: |
+      Makes kit.lock again from the tools kit.yml pins: for each one and each platform, the file, its sha256, and the
+      program's own. It shows its plan, and changes nothing until you approve it.
+    options:
+      - name: unconfirmed
+        help: pin a file that neither GitHub nor the tool confirms, on kit's own download alone
+      - name: plan
+        help: print the plan, and change nothing

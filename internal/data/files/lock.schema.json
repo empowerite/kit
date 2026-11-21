@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "a repository's kit.lock",
+  "type": "object",
+  "properties": {
+    "tools": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "string",
+            "minLength": 1
+          },
+          "entry": {
+            "$ref": "#/$defs/entry"
+          },
+          "files": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/$defs/file"
+            }
+          }
+        },
+        "required": [
+          "version",
+          "entry",
+          "files"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "tools"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "entry": {
+      "type": "object",
+      "properties": {
+        "github": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+        },
+        "tag": {
+          "type": "string",
+          "pattern": "\\{version\\}"
+        },
+        "files": {
+          "type": "object",
+          "properties": {
+            "darwin/arm64": {
+              "$ref": "#/$defs/name"
+            },
+            "darwin/amd64": {
+              "$ref": "#/$defs/name"
+            },
+            "linux/arm64": {
+              "$ref": "#/$defs/name"
+            },
+            "linux/amd64": {
+              "$ref": "#/$defs/name"
+            }
+          },
+          "required": [
+            "darwin/arm64",
+            "darwin/amd64",
+            "linux/arm64",
+            "linux/amd64"
+          ],
+          "additionalProperties": false
+        },
+        "program": {
+          "type": "string",
+          "minLength": 1
+        },
+        "checksums": {
+          "type": "string",
+          "pattern": "\\{file\\}"
+        }
+      },
+      "required": [
+        "github",
+        "tag",
+        "files",
+        "program"
+      ],
+      "additionalProperties": false
+    },
+    "file": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string",
+          "pattern": "^https://"
+        },
+        "digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "program": {
+          "type": "string",
+          "minLength": 1
+        },
+        "program_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "confirmed": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "github",
+              "published"
+            ]
+          },
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "url",
+        "digest",
+        "program",
+        "program_digest",
+        "confirmed"
+      ],
+      "additionalProperties": false
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "name": {
+      "type": "string",
+      "pattern": "\\.(tar\\.gz|zip)$"
+    }
+  }
+}

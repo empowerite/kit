@@ -43,22 +43,24 @@ func gone(err error) error {
 	return err
 }
 
-// WriteFile writes a file of the repository's.
-func WriteFile(files ports.Files, path string, data []byte) Operation {
-	return writeFile{files, path, data}
+// WriteFile writes a file of the repository's, at name, a path from its root.
+func WriteFile(files ports.Files, root, name string, data []byte) Operation {
+	return writeFile{files, root, name, data}
 }
 
 type writeFile struct {
-	files ports.Files
-	path  string
-	data  []byte
+	files      ports.Files
+	root, name string
+	data       []byte
 }
 
-func (o writeFile) Step() Step { return Step{System: "files", Does: "write " + o.path, Undoable: true} }
+func (o writeFile) path() string { return o.root + "/" + o.name }
 
-func (o writeFile) Facts(context.Context) (string, error) { return digest(o.files, o.path, false) }
+func (o writeFile) Step() Step { return Step{System: "files", Does: "write " + o.name, Undoable: true} }
 
-func (o writeFile) Apply(context.Context) error { return o.files.Write(o.path, o.data, 0o644) }
+func (o writeFile) Facts(context.Context) (string, error) { return digest(o.files, o.path(), false) }
+
+func (o writeFile) Apply(context.Context) error { return o.files.Write(o.path(), o.data, 0o644) }
 
 // The header of .kit/.gitignore, which names what kit placed under .kit/, itself first.
 const ignoreHeader = "# .kit/.gitignore - what kit placed here, which git never sees (written by kit, not by hand)\n"
@@ -148,9 +150,9 @@ type place struct {
 }
 
 func (o place) Step() Step {
-	does := "place " + o.path() + ", read-only"
+	does := "place .kit/" + o.name + ", read-only"
 	if o.link != "" {
-		does = "place " + o.path() + ", a link to " + o.link
+		does = "place .kit/" + o.name + ", a link to " + o.link
 	}
 	return Step{System: ".kit", Does: does, Undoable: true, Hydrates: true}
 }
@@ -180,7 +182,7 @@ func (o place) Apply(context.Context) error {
 type unplace struct{ kitFile }
 
 func (o unplace) Step() Step {
-	return Step{System: ".kit", Does: "take out " + o.path(), Undoable: true, Hydrates: true}
+	return Step{System: ".kit", Does: "take out .kit/" + o.name, Undoable: true, Hydrates: true}
 }
 
 func (o unplace) Facts(ctx context.Context) (string, error) { return o.facts(ctx, false) }
