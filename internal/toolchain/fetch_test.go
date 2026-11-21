@@ -195,14 +195,14 @@ func TestRunToolByItsNameAloneIsTheToolOfTheBinThePathFindsFirst(t *testing.T) {
 	// name, as the shell found it, and never the one of the repository kit happens to run in.
 	d := pinned(t)
 	hydrate(t, d)
-	other := pinned(t)
+	want := program(t, d)
 	d.Dir = "/elsewhere"
 	d.Git = &fake.Git{Err: errors.New("git is not asked")}
 	d.Machine.(*fake.Machine).Env = []string{"PATH=/usr/bin:/r/.kit/bin"}
 	if err := RunTool(ctx, d, "shellcheck", nil); err != nil {
 		t.Fatalf("RunTool gave the error %v", err)
 	}
-	if got := d.Processes.(*fake.Processes).Replaced[0].Path; got != program(t, other) {
+	if got := d.Processes.(*fake.Processes).Replaced[0].Path; got != want {
 		t.Errorf("RunTool ran %s", got)
 	}
 	for _, env := range [][]string{{"PATH=/usr/bin"}, {"HOME=/home/a"}} {
