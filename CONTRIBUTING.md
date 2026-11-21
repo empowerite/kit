@@ -59,7 +59,8 @@ are taken with git and `gh`: kit does not run them.
 The rule on imports sees what a file imports, and not what it calls: a test may import `os` for its files, and
 nothing but a review can see a call of `os.StartProcess`.
 
-`go test ./...` is the quick loop while working.
+`go test ./...` is the quick loop while working. `go test -tags=nightly ./...` adds the nightly tier, the tests that
+start a process or reach the network, which `nightly.yml` runs each night on Linux and macOS.
 
 The gate builds kit from the tree it judges, and has it fetch the tools kit.lock pins. It passes `--trust=checkout`,
 which trusts the checkout for that run alone: to run the gate is the person's own act. CI keeps kit's cache of tools

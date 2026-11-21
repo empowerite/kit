@@ -1,0 +1,36 @@
+# nightly.yml - the nightly tier: the tests that start a process or reach the network, on Linux and macOS
+#
+# The gate runs no such test: each real call of an adapter is covered there by one that ends before anything starts,
+# and is proven here. The tests reach GitHub with the job's own token, and each keeps kit's cache and state in a
+# folder of its own.
+name: nightly
+
+on:
+  schedule:
+    - cron: '17 10 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  nightly:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5  # v7.1.0
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: the nightly tier
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          go test -tags=nightly -count=1 ./... | tee -a "${GITHUB_STEP_SUMMARY}"
