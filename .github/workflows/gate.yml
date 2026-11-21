@@ -59,6 +59,15 @@ jobs:
           restore-keys: |
             go-build-${{ hashFiles('go.mod') }}-
 
+      # The tools kit.lock pins, as kit's cache holds them, kept between runs while kit.lock is the same. kit holds
+      # each to the lock before it runs, so a cache that was changed is refused, never run.
+      - name: tools
+        id: tools
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ~/.cache/kit/tools
+          key: kit-tools-${{ hashFiles('kit.lock') }}
+
       - name: gate
         id: gate
         run: bin/gate --keep="${RUNNER_TEMP}/gate"
@@ -74,6 +83,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: bin/forge --keep="${RUNNER_TEMP}/gate"
+
+      - name: save the tools
+        if: ${{ !cancelled() && steps.gate.conclusion != 'skipped' && steps.tools.outputs.cache-hit != 'true' && hashFiles('kit.lock') != '' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ~/.cache/kit/tools
+          key: ${{ steps.tools.outputs.cache-primary-key }}
 
       # Saved whether the gate held or refused, since what it compiled is good either way. A run of a commit that
       # has a cache already saves none.

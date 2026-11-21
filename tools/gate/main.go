@@ -1,6 +1,9 @@
 // Command gate judges a run of this repository's tests: it reads what go test -json printed, the coverage profile
 // the run wrote, and the status go test ended with, and refuses a failure, a skip, a statement no test runs, a slow
 // test, a slow gate, and a run that stopped short. bin/gate runs it, once go test has ended.
+//
+// With --program, it judges a tool kit fetched instead: the program's sha256 must be the one kit.lock names for this
+// machine's platform. The gate reads the lock itself, so it does not take kit's word that a tool is the one pinned.
 package main
 
 import (
@@ -27,6 +30,9 @@ func run(args []string, stdin io.Reader, stdout io.Writer, now func() time.Time)
 	for _, arg := range args {
 		name, value, _ := strings.Cut(arg, "=")
 		options[name] = value
+	}
+	if _, ok := options["--program"]; ok {
+		return program(options, stdout)
 	}
 	started, errSince := strconv.ParseInt(options["--since"], 10, 64)
 	status, errStatus := strconv.Atoi(options["--status"])
