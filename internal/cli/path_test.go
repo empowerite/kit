@@ -150,14 +150,41 @@ func TestTrustShowsWhatItCoversAndRecordsIt(t *testing.T) {
 			t.Errorf("trust printed %q; want %q (%d, %q)", out, want, code, err)
 		}
 	}
-	if code, out, _ := runTools(t, d, "trust", "--plan"); code != 0 || !strings.HasPrefix(out, "Nothing changed since you last trusted this clone.") {
-		t.Errorf("trust again = %d, %q", code, out)
+	presence := d.Presence.(*fake.Presence)
+	asked := len(presence.Asked)
+	if code, out, _ := runTools(t, d, "trust"); code != 0 || out != "kit trusts this clone already, as it holds now: there is nothing to approve.\n" ||
+		len(presence.Asked) != asked {
+		t.Errorf("trust again = %d, %q, and asked %d times more; want no question", code, out, len(presence.Asked)-asked)
+	}
+	if code, out, _ := runTools(t, d, "trust", "--json"); code != 0 || !strings.Contains(out, `"trusted": true`) {
+		t.Errorf("trust --json again = %d, %q", code, out)
 	}
 	if code, _, _ := runTools(t, d, "tools", "fetch"); code != 0 {
 		t.Errorf("once trusted, tools fetch = %d", code)
 	}
+	d.Files.Write("/r/kit.yml", []byte("tools:\n  shellcheck: 0.11.0\n# changed\n"), 0o644)
+	if code, out, err := runTools(t, d, "trust", "--json"); code != 0 || !strings.Contains(err, "kit.yml changed") || !strings.Contains(out, `"result"`) {
+		t.Errorf("trust --json of a change = %d, %q, %q; want what changed on stderr first", code, out, err)
+	}
+	if code, out, _ := runTools(t, d, "trust"); code != 0 || !strings.HasPrefix(out, "kit trusts this clone already") {
+		t.Errorf("trust once more = %d, %q", code, out)
+	}
+	// Contents trusted before are trusted still: several sets are held at once.
+	d.Files.Write("/r/kit.yml", []byte("tools:\n  shellcheck: 0.11.0\n"), 0o644)
+	if code, out, _ := runTools(t, d, "trust"); code != 0 || !strings.HasPrefix(out, "kit trusts this clone already") {
+		t.Errorf("trust of contents trusted before = %d, %q", code, out)
+	}
 	d.Machine.(*fake.Machine).Err = errors.New("no home")
 	if code, _, err := runTools(t, d, "trust"); code != 1 || err != "kit: no home\n" {
 		t.Errorf("trust with no state = %d, %q", code, err)
+	}
+}
+
+func TestTrustOfACloneThatHoldsNothingKitWouldRun(t *testing.T) {
+	d := toolsDesk(t, &fake.Presence{})
+	d.Machine = &fake.Machine{OS: "linux", Arch: "amd64", StateDir: "/state/kit"}
+	d.Processes = &fake.Processes{}
+	if code, out, _ := runTools(t, d, "trust", "--plan"); code != 0 || !strings.HasPrefix(out, "This clone holds nothing kit would fetch or run.\n") {
+		t.Errorf("trust = %d, %q", code, out)
 	}
 }

