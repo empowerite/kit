@@ -58,7 +58,17 @@ func (o writeFile) path() string { return o.root + "/" + o.name }
 
 func (o writeFile) Step() Step { return Step{System: "files", Does: "write " + o.name, Undoable: true} }
 
-func (o writeFile) Facts(context.Context) (string, error) { return digest(o.files, o.path(), false) }
+// Facts covers what the file holds now and what it will hold, so that an approval binds to the bytes written.
+func (o writeFile) Facts(context.Context) (string, error) {
+	now, err := digest(o.files, o.path(), false)
+	return now + " to " + sum(o.data), err
+}
+
+// sum gives the sha256 of bytes, in hex.
+func sum(b []byte) string {
+	s := sha256.Sum256(b)
+	return hex.EncodeToString(s[:])
+}
 
 func (o writeFile) Apply(context.Context) error { return o.files.Write(o.path(), o.data, 0o644) }
 
@@ -157,7 +167,11 @@ func (o place) Step() Step {
 	return Step{System: ".kit", Does: does, Undoable: true, Hydrates: true}
 }
 
-func (o place) Facts(ctx context.Context) (string, error) { return o.facts(ctx, o.link != "") }
+// Facts covers what is placed, as well as what stands there now.
+func (o place) Facts(ctx context.Context) (string, error) {
+	now, err := o.facts(ctx, o.link != "")
+	return now + " to " + sum(o.data) + " " + o.link, err
+}
 
 func (o place) Apply(context.Context) error {
 	names, err := o.names()
