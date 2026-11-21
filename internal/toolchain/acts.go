@@ -24,6 +24,8 @@ type Desk struct {
 	Releases  ports.Releases
 	Downloads ports.Downloads
 	Presence  ports.Presence
+	Machine   ports.Machine
+	Processes ports.Processes
 }
 
 // Repo is a repository as kit reads it: its root, the clone's common directory, its kit.yml, and its kit.lock.
@@ -46,11 +48,18 @@ func read(files ports.Files, path string) ([]byte, error) {
 
 // Open finds the repository that holds the desk's directory, and reads its pins and its lock.
 func Open(ctx context.Context, d Desk) (Repo, error) {
-	var r Repo
-	var err error
-	if r.Root, r.Common, err = d.Git.Root(ctx, d.Dir); err != nil {
-		return r, err
+	root, common, err := d.Git.Root(ctx, d.Dir)
+	if err != nil {
+		return Repo{}, err
 	}
+	r, err := openAt(d, root)
+	r.Common = common
+	return r, err
+}
+
+// openAt reads the pins and the lock of the repository whose root is given.
+func openAt(d Desk, root string) (Repo, error) {
+	r := Repo{Root: root}
 	yml, err := read(d.Files, r.Root+"/kit.yml")
 	if err != nil {
 		return r, err

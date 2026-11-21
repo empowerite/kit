@@ -3,10 +3,14 @@ package os
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io/fs"
 	goos "os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strings"
+	"syscall"
 	"time"
 
 	"github.com/empowerite/kit/internal/ports"
@@ -65,3 +69,70 @@ func exit(err error) (int, error) {
 	}
 	return -1, err
 }
+
+// Replace runs a program in kit's place. It returns only where the program cannot be run.
+func (Processes) Replace(c ports.Cmd) error {
+	env := c.Env
+	if env == nil {
+		env = goos.Environ()
+	}
+	path := c.Path
+	if !strings.Contains(path, "/") {
+		found, err := lookPath(path, env)
+		if err != nil {
+			return err
+		}
+		path = found
+	}
+	return syscall.Exec(path, append([]string{c.Path}, c.Args...), env)
+}
+
+// lookPath finds a program by its name on the PATH an environment holds.
+func lookPath(name string, env []string) (string, error) {
+	for _, kv := range env {
+		if dirs, ok := strings.CutPrefix(kv, "PATH="); ok {
+			for _, dir := range filepath.SplitList(dirs) {
+				path := filepath.Join(dir, name)
+				if info, err := goos.Stat(path); err == nil && info.Mode().IsRegular() && info.Mode().Perm()&0o111 != 0 {
+					return path, nil
+				}
+			}
+		}
+	}
+	return "", fmt.Errorf("there is no %s on the PATH", name)
+}
+
+// Machine is the machine kit runs on.
+type Machine struct{}
+
+func (Machine) Platform() string { return runtime.GOOS + "/" + runtime.GOARCH }
+
+// Cache is the person's cache, as the system names it, with kit's folder in it.
+func (Machine) Cache() (string, error) {
+	dir, err := goos.UserCacheDir()
+	return dir + "/kit", err
+}
+
+// State is where kit keeps what is the person's, as XDG_STATE_HOME names it, or ~/.local/state.
+func (Machine) State() (string, error) {
+	if dir := goos.Getenv("XDG_STATE_HOME"); dir != "" {
+		return dir + "/kit", nil
+	}
+	home := goos.Getenv("HOME")
+	if home == "" {
+		return "", errors.New("kit has no home: HOME is not set")
+	}
+	return home + "/.local/state/kit", nil
+}
+
+// Executable gives the path of the kit that runs, with no link in it.
+func (Machine) Executable() (string, error) {
+	path, err := goos.Executable()
+	if err == nil {
+		path, err = filepath.EvalSymlinks(path)
+	}
+	return path, err
+}
+
+func (Machine) Environ() []string { return goos.Environ() }
+func (Machine) Args() []string    { return goos.Args }
