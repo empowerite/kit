@@ -10,7 +10,9 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"maps"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -31,7 +33,8 @@ func tgz(t *testing.T, files map[string]string) []byte {
 	var b bytes.Buffer
 	z := gzip.NewWriter(&b)
 	w := tar.NewWriter(z)
-	for name, text := range files {
+	for _, name := range slices.Sorted(maps.Keys(files)) {
+		text := files[name]
 		if err := w.WriteHeader(&tar.Header{Name: name, Mode: 0o755, Size: int64(len(text))}); err != nil {
 			t.Fatal(err)
 		}
@@ -47,7 +50,8 @@ func zipped(t *testing.T, files map[string]string) []byte {
 	t.Helper()
 	var b bytes.Buffer
 	w := zip.NewWriter(&b)
-	for name, text := range files {
+	for _, name := range slices.Sorted(maps.Keys(files)) {
+		text := files[name]
 		f, err := w.Create(name)
 		if err != nil {
 			t.Fatal(err)

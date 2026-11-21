@@ -126,6 +126,9 @@ func file(d Desk, r Repo, name string) (LockedFile, error) {
 // Fetch plans to fetch every tool the lock holds for this platform into the cache, to place a link in .kit/bin for
 // each, and .kit/env for direnv. It changes nothing that git sees, so it is hydrated, with no approval.
 func Fetch(ctx context.Context, d Desk, r Repo) (plan.Plan, error) {
+	if err := Allowed(ctx, d, r); err != nil {
+		return plan.Plan{}, err
+	}
 	cache, err := d.Machine.Cache()
 	if err != nil {
 		return plan.Plan{}, err
@@ -155,6 +158,9 @@ func Fetch(ctx context.Context, d Desk, r Repo) (plan.Plan, error) {
 // checked gives the path of a tool's program in the cache, fetched where it is not yet, once its digest is the one
 // the lock names.
 func checked(ctx context.Context, d Desk, r Repo, name string) (string, error) {
+	if err := Allowed(ctx, d, r); err != nil {
+		return "", err
+	}
 	f, err := file(d, r, name)
 	if err != nil {
 		return "", err
@@ -210,8 +216,15 @@ func RunTool(ctx context.Context, d Desk, argv0 string, args []string) error {
 	if path.Base(bin) != "bin" || path.Base(path.Dir(bin)) != ".kit" {
 		return fmt.Errorf("kit was started as %s, and no .kit/bin on the PATH holds %s", argv0, path.Base(argv0))
 	}
-	r, err := openAt(d, path.Dir(path.Dir(bin)))
+	root := path.Dir(path.Dir(bin))
+	r, err := openAt(d, root)
 	if err != nil {
+		return err
+	}
+	if _, err := file(d, r, path.Base(argv0)); err != nil {
+		return err
+	}
+	if _, r.Common, err = d.Git.Root(ctx, root); err != nil {
 		return err
 	}
 	program, err := checked(ctx, d, r, path.Base(argv0))

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io/fs"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -201,5 +202,16 @@ func TestTheMachineAndTheReplacingSayWhatTheyAreSetTo(t *testing.T) {
 	p := &Processes{ReplaceErr: errors.New("x")}
 	if err := p.Replace(ports.Cmd{Path: "a"}); err == nil || len(p.Replaced) != 1 {
 		t.Errorf("Replace = %v, with %d kept", err, len(p.Replaced))
+	}
+}
+
+func TestProcessesPrintWhatTheyAreSetToWithNoAnswer(t *testing.T) {
+	var out strings.Builder
+	p := &Processes{Prints: map[string]string{"status --json": "{}"}}
+	if code, err := p.Run(context.Background(), ports.Cmd{Path: "direnv", Args: []string{"status", "--json"}, Stdout: &out}); code != 0 || err != nil || out.String() != "{}" {
+		t.Errorf("Run = %d, %v, %q", code, err, out.String())
+	}
+	if code, _ := p.Run(context.Background(), ports.Cmd{Path: "direnv", Args: []string{"allow"}}); code != 0 {
+		t.Errorf("Run with nowhere to print = %d", code)
 	}
 }

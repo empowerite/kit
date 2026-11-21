@@ -3,6 +3,7 @@ package fake
 import (
 	"context"
 	"fmt"
+	"io"
 	"io/fs"
 	"path"
 	"slices"
@@ -247,18 +248,26 @@ func (p *Presence) Prove(_ context.Context, reason, _ string) (ports.Proof, erro
 	return p.Proof, p.Err
 }
 
-// Processes runs nothing: it keeps each program it is asked to run, and answers as Answer says. A program kit is
-// replaced by is kept in Replaced, and Replace gives ReplaceErr.
+// Processes runs nothing: it keeps each program it is asked to run, and answers as Answer says, or, with no Answer,
+// prints what Prints holds for the program's arguments, joined by a space, and ends well. A program kit is replaced
+// by is kept in Replaced, and Replace gives ReplaceErr.
 type Processes struct {
 	Runs       []ports.Cmd
 	Answer     func(c ports.Cmd) (int, error)
+	Prints     map[string]string
 	Replaced   []ports.Cmd
 	ReplaceErr error
 }
 
 func (p *Processes) Run(_ context.Context, c ports.Cmd) (int, error) {
 	p.Runs = append(p.Runs, c)
-	return p.Answer(c)
+	if p.Answer != nil {
+		return p.Answer(c)
+	}
+	if c.Stdout != nil {
+		io.WriteString(c.Stdout, p.Prints[strings.Join(c.Args, " ")])
+	}
+	return 0, nil
 }
 
 func (p *Processes) Replace(c ports.Cmd) error {

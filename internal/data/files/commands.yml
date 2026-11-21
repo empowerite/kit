@@ -57,11 +57,19 @@ commands:
       program to its digest in the lock. It places a link in .kit/bin for each tool, and .kit/env for direnv, each
       named in .kit/.gitignore. It changes nothing that git sees, so it asks no approval. Every command that runs a
       tool fetches first.
+    options:
+      - name: trust
+        value: checkout
+        help: trust this checkout for this run alone, and record nothing, as a script of the repository's does
 
   - words: [tools, path]
     summary: print where a pinned tool's program is
     help: |
       Prints the path of a tool's program in kit's cache, once it is fetched and its digest is the one kit.lock names.
+    options:
+      - name: trust
+        value: checkout
+        help: trust this checkout for this run alone, and record nothing, as a script of the repository's does
     args:
       - name: tool
 
@@ -70,6 +78,10 @@ commands:
     help: |
       Runs a command in kit's place, with the pinned tools fetched, and .kit/bin first on the PATH. Each tool there
       is checked against kit.lock each time it runs. Give the command after --, as kit exec -- shellcheck bin/gate.
+    options:
+      - name: trust
+        value: checkout
+        help: trust this checkout for this run alone, and record nothing, as a script of the repository's does
     args:
       - name: command
         many: true
@@ -81,6 +93,21 @@ commands:
       own words (PATH_add, and watch_file for kit.yml and kit.lock, so that direnv loads it again when a pin
       changes). It fetches first.
     options:
+      - name: trust
+        value: checkout
+        help: trust this checkout for this run alone, and record nothing, as a script of the repository's does
       - name: shell
         value: name
         help: bash, zsh, or direnv; bash where it is not given
+
+  - words: [trust]
+    summary: trust what this clone asks kit to fetch and run
+    help: |
+      kit fetches and runs nothing in a clone until you trust it. This shows what the trust covers (kit.yml and
+      kit.lock, mise's files, and the .envrc), and what changed since you last trusted the clone: which tool, which
+      version, and which addresses. Once you approve, with proof that you are here, kit trusts the clone and all of
+      its worktrees while those files hold what they hold now, and asks again when they change. Where there is an
+      .envrc, the same act runs direnv allow, so you trust once.
+    options:
+      - name: plan
+        help: print the plan, and change nothing

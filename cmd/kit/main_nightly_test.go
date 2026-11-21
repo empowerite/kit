@@ -26,6 +26,8 @@ func TestShellcheckPinnedFetchedAndRunForReal(t *testing.T) {
 			t.Fatalf("%v: %v: %s", c, err, out)
 		}
 	}
+	state := t.TempDir()
+	t.Setenv("XDG_STATE_HOME", state)
 	d, err := desk()
 	if err != nil {
 		t.Fatal(err)
@@ -42,6 +44,18 @@ func TestShellcheckPinnedFetchedAndRunForReal(t *testing.T) {
 	}
 	approval, err := plan.Approve(ctx, p, &fake.Presence{})
 	if err != nil {
+		t.Fatal(err)
+	}
+	if result := plan.Apply(ctx, p, approval); result.Err != nil {
+		t.Fatal(result.Err)
+	}
+	// The person trusts the clone, as kit trust asks, approved here as a test may.
+	r, _ = toolchain.Open(ctx, d)
+	p, _, err = toolchain.TrustPlan(ctx, d, r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if approval, err = plan.Approve(ctx, p, &fake.Presence{}); err != nil {
 		t.Fatal(err)
 	}
 	if result := plan.Apply(ctx, p, approval); result.Err != nil {

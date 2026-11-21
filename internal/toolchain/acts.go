@@ -24,6 +24,9 @@ type Desk struct {
 	Presence  ports.Presence
 	Machine   ports.Machine
 	Processes ports.Processes
+	// Once trusts the checkout for this run alone, and records nothing: the person passed --trust=checkout, as a
+	// script of the repository's does. No environment variable sets it.
+	Once bool
 }
 
 // Repo is a repository as kit reads it: its root, the clone's common directory, its kit.yml, and its kit.lock.
@@ -55,7 +58,7 @@ func Open(ctx context.Context, d Desk) (Repo, error) {
 	return r, err
 }
 
-// openAt reads the pins and the lock of the repository whose root is given.
+// openAt reads the pins and the lock of the repository whose root is given. Its common directory is not read.
 func openAt(d Desk, root string) (Repo, error) {
 	r := Repo{Root: root}
 	yml, err := read(d.Files, r.Root+"/kit.yml")
