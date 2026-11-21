@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"os"
 	"runtime/debug"
@@ -180,7 +179,7 @@ func TestDeskIsTheRealMachine(t *testing.T) {
 	if d, _ := desk(); d.Releases == nil {
 		t.Error("desk() with a token gave no releases")
 	}
-	if _, err := d.Presence.Prove(context.Background(), "approve", "abc"); err == nil || !strings.Contains(err.Error(), "#48") {
-		t.Errorf("Prove gave %v; want a refusal that names #48", err)
+	if d.Presence == nil || d.Machine == nil || d.Processes == nil {
+		t.Errorf("desk() = %+v; want presence, the machine, and processes wired", d)
 	}
 }

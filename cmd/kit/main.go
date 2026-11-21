@@ -4,7 +4,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"maps"
@@ -18,7 +17,6 @@ import (
 	kitos "github.com/empowerite/kit/internal/adapters/os"
 	"github.com/empowerite/kit/internal/cli"
 	"github.com/empowerite/kit/internal/data"
-	"github.com/empowerite/kit/internal/ports"
 	"github.com/empowerite/kit/internal/toolchain"
 )
 
@@ -56,19 +54,10 @@ func desk() (toolchain.Desk, error) {
 		Git:       git.New(kitos.Processes{}),
 		Releases:  github.NewReleases(token, nil),
 		Downloads: github.NewDownloads(nil),
-		Presence:  noPresence{},
+		Presence:  kitos.NewPresence(),
 		Machine:   kitos.Machine{},
 		Processes: kitos.Processes{},
 	}, err
-}
-
-// noPresence stands in for the machine's proof that the person is there, which #48 brings. It refuses, so that
-// nothing is applied with no proof.
-type noPresence struct{}
-
-func (noPresence) Prove(context.Context, string, string) (ports.Proof, error) {
-	return ports.Proof{}, errors.New("presence: this build of kit cannot yet ask for proof that you are here " +
-		"(#48 brings it), so it applies nothing")
 }
 
 func main() {
