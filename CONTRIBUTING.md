@@ -76,9 +76,9 @@ itself, so each of these must be a rule GitHub applies to it, which `tools/forge
 
 When a pull request lands, two runs follow on `main`, and neither runs a test:
 
-- `landed` checks that the commit holds the very tree the gate judged, in a run of the gate that held. `bin/landed`
-  makes the check, and refuses a commit of which that is not so. The build badge in the README is this run's, so it
-  speaks of `main`.
+- `build` checks that the commit holds the very tree the gate judged, and built, in a run of the gate that held.
+  `bin/landed` makes the check, and refuses a commit of which that is not so. The build badge in the README is this
+  run's, so it speaks of `main`.
 - `coverage` gives Codecov the gate's profile under the commit that landed.
 
 Codecov is told what the gate measured, and judges nothing:
@@ -86,7 +86,7 @@ Codecov is told what the gate measured, and judges nothing:
 - A job beside the gate gives it the coverage profile of a pull request's head, with the repository's own upload
   token, the secret `CODECOV_TOKEN`. No rule asks for that job, so Codecov being down holds no merge.
 - For `main`, the run `coverage` gives it the same profile, from what `bin/landed` fetched. Codecov being down
-  fails that run, and not `landed`.
+  fails that run, and not `build`.
 - It puts no status on a commit and writes no comment on a pull request (`codecov.yml`).
 
 Scripts are bash. A test in one is written `[[ … ]]`, and arithmetic `(( … ))`, never `[ … ]`.

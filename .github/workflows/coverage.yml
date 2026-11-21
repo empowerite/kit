@@ -1,7 +1,7 @@
 # coverage.yml - tells Codecov the coverage of a commit on main, from what the gate kept for the pull request it landed as
 #
 # No test runs here, as none runs on main. bin/landed fetches the gate's results, after the check it makes for
-# landed.yml, and the profile among them goes to Codecov under the commit that landed. Codecov compares a pull
+# build.yml, and the profile among them goes to Codecov under the commit that landed. Codecov compares a pull
 # request with main, so main needs a figure too. It is a run of its own: Codecov being down fails this run, where it
 # is seen on the commit, and not the one the README's badge shows.
 name: coverage
