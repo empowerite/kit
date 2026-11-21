@@ -1,0 +1,11 @@
+# commands.yml - kit's commands: the words of each, its options, and its help
+#
+# From this file come the command line's parsing, its help, and what each command's --json prints names. --json and
+# --help are every command's, so no command names them.
+commands:
+  - words: [version]
+    summary: say which build this is
+    help: |
+      Says the commit this build of kit was made from, when that commit was made, and whether the tree held changes
+      the commit does not. A build does not know its release: a release is a tag put afterwards on a commit whose
+      build exists, and two releases can name one build.
