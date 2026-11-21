@@ -15,9 +15,14 @@ import (
 	"github.com/empowerite/kit/internal/ports"
 )
 
+// miseFiles are the files of a clone that mise reads: its configuration, where it may stand, the local ones beside
+// it, the .tool-versions it reads too, and its lock.
+var miseFiles = []string{"mise.toml", ".mise.toml", ".config/mise.toml", "mise/config.toml", ".config/mise/config.toml",
+	"mise.local.toml", ".mise.local.toml", ".config/mise/config.local.toml", ".tool-versions", "mise.lock"}
+
 // covers are the files a clone's trust covers, by their paths from the root: what names the tools kit fetches and
-// runs, and the .envrc that direnv runs, those of them that exist.
-var covers = []string{"kit.yml", "kit.lock", "mise.toml", ".mise.toml", "mise.lock", ".envrc"}
+// runs, what names the tools mise runs for kit exec, and the .envrc that direnv runs, those of them that exist.
+var covers = append([]string{"kit.yml", "kit.lock", ".envrc"}, miseFiles...)
 
 // Covered is what a trust covers: each file by its path and its sha256, and the tools kit.lock pins, so that kit can
 // say what changed since.
@@ -177,7 +182,7 @@ func TrustPlan(ctx context.Context, d Desk, r Repo) (plan.Plan, []string, error)
 	text, _ := json.MarshalIndent(s, "", "  ")
 	ops := []plan.Operation{record{d.Files, path, append(text, '\n'), slices.Sorted(maps.Keys(c.Files))}}
 	if _, ok := c.Files[".envrc"]; ok && DirenvState(ctx, d, r.Root) != "direnv is not installed here" {
-		ops = append(ops, allow{d.Processes, r.Root + "/.envrc"})
+		ops = append(ops, allow{d.Processes, d.Files, r.Root + "/.envrc"})
 	}
 	return plan.Plan{Act: "trust", Operations: ops}, changes, nil
 }
@@ -204,6 +209,7 @@ func (o record) Apply(context.Context) error { return o.files.Write(o.path, o.da
 // allow runs direnv allow, so that direnv runs the .envrc the person trusted with kit.
 type allow struct {
 	processes ports.Processes
+	files     ports.Files
 	envrc     string
 }
 
@@ -211,7 +217,11 @@ func (o allow) Step() plan.Step {
 	return plan.Step{System: "direnv", Does: "direnv allow " + o.envrc, Command: "direnv allow " + o.envrc, Undoable: true}
 }
 
-func (o allow) Facts(context.Context) (string, error) { return o.envrc, nil }
+// Facts covers the .envrc's bytes, so that direnv is asked to allow the .envrc the person approved, and no other.
+func (o allow) Facts(context.Context) (string, error) {
+	text, err := o.files.Read(o.envrc)
+	return o.envrc + " " + digestOf(text), err
+}
 
 func (o allow) Apply(ctx context.Context) error {
 	code, err := o.processes.Run(ctx, ports.Cmd{Path: "direnv", Args: []string{"allow", o.envrc}})

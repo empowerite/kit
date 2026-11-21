@@ -20,11 +20,12 @@ import (
 
 // Step is what a plan shows of one operation.
 type Step struct {
-	System   string `json:"system"` // "files", ".kit", "cache", or "trust"
-	Does     string `json:"does"`
-	Command  string `json:"command,omitempty"` // the command line that does the same, where there is one
-	Undoable bool   `json:"undoable"`
-	Hydrates bool   `json:"hydrates,omitempty"` // it places only what kit owns, and changes nothing git sees
+	System   string   `json:"system"` // "files", ".kit", "cache", or "trust"
+	Does     string   `json:"does"`
+	Command  string   `json:"command,omitempty"` // the command line that does the same, where there is one
+	Undoable bool     `json:"undoable"`
+	Hydrates bool     `json:"hydrates,omitempty"` // it places only what kit owns, and changes nothing git sees
+	Detail   []string `json:"detail,omitempty"`   // what the step changes, line by line, as the plan shows it
 }
 
 // Operation is one step of a plan. Facts is a digest of what the step depends on, as it stands now.
@@ -155,6 +156,9 @@ func Print(w io.Writer, d Doc) {
 	}
 	for _, s := range d.Steps {
 		fmt.Fprintf(w, "  %-*s  %s\n", width, s.System, s.Does)
+		for _, line := range s.Detail {
+			fmt.Fprintf(w, "  %-*s    %s\n", width, "", line)
+		}
 	}
 }
 

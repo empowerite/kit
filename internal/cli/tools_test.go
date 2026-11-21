@@ -126,9 +126,9 @@ func TestToolsAddSaysAResultAsJSON(t *testing.T) {
 	if code != 1 || got.Result.Error != "disk full" || len(got.Result.NotDone) != 1 {
 		t.Errorf("tools add --json = %d, %q; want the result, with kit.lock not done", code, out)
 	}
-	if code, out, _ := runTools(t, toolsDesk(t, &fake.Presence{}), "tools", "add", "shellcheck", "--json"); code != 0 ||
-		!strings.Contains(out, `"error": ""`) {
-		t.Errorf("tools add --json = %d, %q; want the result with no error", code, out)
+	if code, out, err := runTools(t, toolsDesk(t, &fake.Presence{}), "tools", "add", "shellcheck", "--json"); code != 0 ||
+		!strings.Contains(out, `"error": ""`) || !strings.HasPrefix(err, "Plan  kit tools add shellcheck@0.11.0, ") {
+		t.Errorf("tools add --json = %d, %q, %q; want the plan on stderr, then the result with no error", code, out, err)
 	}
 }
 

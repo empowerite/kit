@@ -61,7 +61,7 @@ func desk() (toolchain.Desk, error) {
 }
 
 func main() {
-	if named := filepath.Base(os.Args[0]); !strings.HasPrefix(named, "kit") {
+	if named := filepath.Base(os.Args[0]); named != "kit" && !strings.HasPrefix(named, "kit-") && !strings.HasPrefix(named, "kit.") {
 		// kit started by a tool's name, through a link in .kit/bin.
 		exit(tool(os.Args[0], os.Args[1:], os.Stderr))
 		return
