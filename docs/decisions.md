@@ -18,3 +18,4 @@ owner, and only the owner changes this page.
 | 2026-11-18 | The README names the pages and says the state in a line. It does not list what the repository holds, so adding a file does not change it. | [CONTRIBUTING.md](../CONTRIBUTING.md#a-pull-request) |
 | 2026-11-19 | Codecov is told what the gate measured, with the repository's own upload token. It judges nothing: the gate stays the one check a merge waits for. | [CONTRIBUTING.md](../CONTRIBUTING.md#the-gate) |
 | 2026-11-19 | The README shows two badges: Codecov's figure for `main`, and whether `main` is the tree the gate judged. | [README.md](../README.md) |
+| 2026-11-21 | The toolchain: kit never installs mise; works with mise alone for now, and is the tool manager where none is in use; knows a tool's releases from a list it carries as data; and builds plan, approve, and apply, the data files, and presence now, in their final form. | [the toolchain design](design/toolchain.md#what-the-owner-decided) |
