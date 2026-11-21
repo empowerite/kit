@@ -50,6 +50,32 @@ func Tools(desk func() (toolchain.Desk, error)) map[string]Handler {
 			doc, _ := p.Doc(ctx)
 			return decide(ctx, call, out, d, p, doc)
 		},
+		"tools check": func(ctx context.Context, call Call, out Out) int {
+			d, r, err := opened(ctx, call, desk)
+			var found []toolchain.Finding
+			if err == nil {
+				list, _ := toolchain.List()
+				found, err = toolchain.CheckAll(ctx, d, r, list)
+			}
+			if err != nil {
+				return fail(out, err)
+			}
+			status := 0
+			if len(found) > 0 {
+				status = 1
+			}
+			if out.JSON {
+				Print(out, "check", map[string]any{"findings": append([]toolchain.Finding{}, found...)})
+				return status
+			}
+			for _, f := range found {
+				fmt.Fprintf(out.Stdout, "%s: %s\n  why  %s\n  fix  %s\n", f.Where, f.What, f.Why, f.Fix)
+			}
+			if status == 0 {
+				fmt.Fprintln(out.Stdout, "kit tools check: ok: each tool is pinned, and locked by its digest for the four platforms")
+			}
+			return status
+		},
 		"tools": func(ctx context.Context, call Call, out Out) int {
 			d, r, err := opened(ctx, call, desk)
 			var listed []toolchain.Listed
@@ -113,7 +139,7 @@ func Tools(desk func() (toolchain.Desk, error)) map[string]Handler {
 			if err != nil {
 				return fail(out, err)
 			}
-			if err := toolchain.Exec(ctx, d, r, call.Args); err != nil {
+			if err := toolchain.Exec(ctx, d, r, call.Args, out.Stderr); err != nil {
 				fail(out, err)
 				return 127
 			}

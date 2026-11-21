@@ -111,3 +111,12 @@ commands:
     options:
       - name: plan
         help: print the plan, and change nothing
+
+  - words: [tools, check]
+    summary: check that a desk and CI run the same tools
+    help: |
+      Holds the repository's tools to the charter's bar: each pinned, and locked by its digest for macOS and Linux,
+      each on arm64 and x86-64. Where mise is in use, it checks mise.toml and mise.lock, and changes neither; where
+      kit is the tool manager, kit.yml and kit.lock. It names a tool manager it does not read yet, and, where there is
+      nothing to work from, says so. Each finding says what is wrong, why, and the fix. It ends in failure where it
+      finds one.

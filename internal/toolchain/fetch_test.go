@@ -306,7 +306,7 @@ func TestEnvPrintsWhatEachShellReads(t *testing.T) {
 
 func TestExecRunsTheCommandWithThePinnedToolsFirstOnThePath(t *testing.T) {
 	d := pinned(t)
-	if err := Exec(ctx, d, open(t, d), []string{"shellcheck", "x.sh"}); err != nil {
+	if err := Exec(ctx, d, open(t, d), []string{"shellcheck", "x.sh"}, nil); err != nil {
 		t.Fatalf("Exec gave the error %v", err)
 	}
 	got := d.Processes.(*fake.Processes).Replaced[0]
@@ -315,7 +315,7 @@ func TestExecRunsTheCommandWithThePinnedToolsFirstOnThePath(t *testing.T) {
 		t.Errorf("Exec ran %+v", got)
 	}
 	d.Machine.(*fake.Machine).Env = []string{"HOME=/home/a"}
-	Exec(ctx, d, open(t, d), []string{"x"})
+	Exec(ctx, d, open(t, d), []string{"x"}, nil)
 	if got := d.Processes.(*fake.Processes).Replaced[1].Env; !reflect.DeepEqual(got, []string{"HOME=/home/a", "PATH=/r/.kit/bin"}) {
 		t.Errorf("Exec with no PATH set ran with %q", got)
 	}
@@ -323,11 +323,11 @@ func TestExecRunsTheCommandWithThePinnedToolsFirstOnThePath(t *testing.T) {
 	d.Files = fake.NewFiles()
 	d.Files.Write("/usr/bin/kit", []byte("kit"), 0o755)
 	d.Files.Write("/r/kit.lock", open(t, pinned(t)).Lock.JSON(), 0o644)
-	if err := Exec(ctx, d, open(t, d), []string{"x"}); err == nil {
+	if err := Exec(ctx, d, open(t, d), []string{"x"}, nil); err == nil {
 		t.Error("Exec with nothing fetched and the forge away gave no error")
 	}
 	d.Machine.(*fake.Machine).Err = errors.New("no home")
-	if err := Exec(ctx, d, open(t, d), []string{"x"}); err == nil {
+	if err := Exec(ctx, d, open(t, d), []string{"x"}, nil); err == nil {
 		t.Error("Exec with no cache gave no error")
 	}
 }
